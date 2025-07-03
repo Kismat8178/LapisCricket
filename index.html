@@ -1,994 +1,1667 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>2D Cricket Game</title>
-<style>
-  body {
-    margin: 0;
-    padding: 0;
-    overflow: hidden; /* Hide scrollbars */
-    background-color: #1a1a1a;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    font-family: sans-serif;
-    color: #fff;
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Cricket Game - Enhanced Shots & Fielding</title>
+    <style>
+        body {
+            margin: 0;
+            overflow-x: hidden; /* Prevent horizontal scrollbar if gameArea is wide */
+            overflow-y: auto; /* Allow vertical scroll if needed */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start; /* Game area at top */
+            background-color: #f0f0f0; /* Light background */
+            font-family: sans-serif;
+            padding-bottom: 20px; /* Add some space at the bottom */
+            box-sizing: border-box;
+            min-height: 100vh; /* Ensure body is at least viewport height */
+        }
 
-  canvas {
-    border: 1px solid #555;
-    background-color: #336633; /* Green ground */
-    display: block; /* Remove extra space below canvas */
-  }
+        #gameArea {
+            width: 95%; /* Use a large percentage of the width */
+            max-width: 900px; /* Adjusted max-width - keeping it slightly less wide might show more vertical field */
+            aspect-ratio: 16 / 12; /* Adjusted aspect ratio to be taller (e.g., 4:3) */
+            background-color: #8FBC8F; /* Green field color - this will be the outfield now */
+            border: 2px solid #556B2F; /* Darker green border */
+            box-sizing: border-box; /* Include border in size */
+            position: relative; /* Needed for absolute positioning inside */
+            margin-top: 10px; /* Space from top */
+            margin-bottom: 10px;
+            flex-shrink: 0; /* Prevent shrinking on small screens */
+        }
 
-  #gameContainer {
-      position: relative;
-      text-align: center; /* Center start button etc. */
-  }
+        canvas {
+            display: block; /* Remove extra space below canvas */
+            width: 100%;
+            height: 100%;
+        }
 
-  #overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent overlay */
-      z-index: 10; /* Above canvas */
-      color: white;
-      font-size: 20px;
-      text-align: center;
-  }
+        #controls {
+            display: flex;
+            justify-content: center; /* Center the buttons */
+            flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+            gap: 10px; /* Space between buttons */
+            width: 95%;
+            max-width: 900px; /* Match gameArea width */
+            padding: 10px 0;
+            box-sizing: border-box;
+        }
 
-  #overlay button {
-      padding: 10px 20px;
-      margin: 10px;
-      font-size: 18px;
-      cursor: pointer;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 5px;
-  }
+        .control-button {
+            padding: 12px 15px; /* Adjusted padding for more buttons */
+            font-size: 14px; /* Adjusted font size */
+            cursor: pointer;
+            background-color: #4CAF50; /* Green */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            user-select: none; /* Prevent text selection */
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+            flex-grow: 1; /* Allow buttons to grow */
+             max-width: 160px; /* Max width for buttons */
+             text-align: center;
+        }
 
-   #overlay button:hover {
-       background-color: #45a049;
-   }
+         .control-button.red {
+             background-color: #f44336; /* Red color for actions like swing */
+         }
+         .control-button.blue {
+             background-color: #008CBA; /* Blue color for bowling */
+         }
+         .control-button.orange {
+             background-color: #FF9800; /* Orange for lofted */
+         }
 
-   #overlay div {
-       margin-bottom: 20px;
-   }
 
-</style>
+        .control-button:active {
+            background-color: #45a049;
+        }
+         .control-button.red:active {
+             background-color: #da190b;
+        }
+         .control-button.blue:active {
+             background-color: #007b9e;
+         }
+          .control-button.orange:active {
+              background-color: #f57c00;
+          }
+
+
+        #scoreDisplay {
+            margin-top: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: center; /* Center the score */
+            min-height: 1.5em; /* Reserve space to prevent layout shifts */
+            width: 95%;
+            max-width: 900px;
+        }
+
+         #messageDisplay {
+             margin-top: 5px;
+             font-size: 1em;
+             color: #333;
+             text-align: center;
+             min-height: 1.2em; /* Reserve space */
+              width: 95%;
+            max-width: 900px;
+         }
+
+         #menuScreen, #tossScreen, #inningsOverScreen {
+             position: absolute;
+             top: 0;
+             left: 0;
+             width: 100%;
+             height: 100%;
+             background-color: rgba(0, 0, 0, 0.8); /* More opaque overlay */
+             display: flex; /* Use flex for centering */
+             flex-direction: column;
+             align-items: center;
+             justify-content: center;
+             z-index: 10; /* Above game elements */
+             color: white;
+             font-size: 1.5em;
+             text-align: center;
+         }
+
+         #tossScreen, #inningsOverScreen {
+             display: none; /* Initially hidden */
+         }
+
+
+         #menuScreen h2, #tossScreen h2, #inningsOverScreen h2 {
+             margin-bottom: 20px;
+             text-align: center;
+         }
+          #menuScreen h3, #tossScreen h3 {
+             margin-bottom: 15px;
+             text-align: center;
+         }
+
+         #modeSelection button, #tossChoice button {
+             padding: 10px 20px; /* Smaller padding for mode buttons */
+             font-size: 0.8em;
+             margin: 5px; /* Smaller margin */
+             cursor: pointer;
+             background-color: #008CBA; /* Blue */
+             color: white;
+             border: none;
+             border-radius: 5px;
+         }
+          #modeSelection button:hover, #tossChoice button:hover {
+            background-color: #007b9e;
+         }
+         #inningsOverScreen button {
+              padding: 15px 30px;
+             font-size: 1em;
+             margin-top: 20px;
+             cursor: pointer;
+             background-color: #008CBA; /* Blue */
+             color: white;
+             border: none;
+             border-radius: 5px;
+         }
+          #tossResult {
+              margin-top: 20px;
+              font-size: 1.2em;
+              font-weight: bold;
+          }
+
+
+    </style>
 </head>
 <body>
 
-<div id="gameContainer">
-    <canvas id="cricketCanvas" width="800" height="600"></canvas>
-    <div id="overlay">
-        <h2>2D Cricket</h2>
-        <p>Loading...</p>
+    <div id="gameArea">
+         <!-- Innings Over Screen (initially hidden) -->
+         <div id="inningsOverScreen">
+             <h2 id="inningsOverTitle">Innings Over!</h2>
+             <p id="inningsOverScore">Final Score: 0/0</p>
+             <button id="nextInningsButton">Next Innings</button>
+         </div>
+
+         <!-- Toss Screen (initially hidden) -->
+         <div id="tossScreen">
+              <h2>Toss</h2>
+              <p id="tossMessage">Flipping the coin...</p>
+              <p id="tossResult" style="display: none;"></p>
+              <div id="tossChoice" style="display: none; margin-top: 20px;">
+                   <p>You won the toss. What do you want to do?</p>
+                   <button data-choice="bat">Bat</button>
+                   <button data-choice="bowl">Bowl</button>
+              </div>
+         </div>
+
+         <!-- Menu Screen (initially visible) -->
+         <div id="menuScreen">
+             <h2>Simple Cricket Game</h2>
+             <h3>Select Mode</h3>
+             <div id="modeSelection">
+                 <button data-mode="T10">T10 (10 Overs)</button>
+                 <button data-mode="ODI">ODI (50 Overs)</button>
+                 <button data-mode="TEST">Test (Unlimited Overs/Innings - Basic)</button>
+             </div>
+              <p style="font-size: 0.8em; margin-top: 20px;">Local Multiplayer - Coming Soon!</p>
+         </div>
+
+
+        <canvas id="cricketCanvas"></canvas>
     </div>
-</div>
 
-<script>
-  const canvas = document.getElementById('cricketCanvas');
-  const ctx = canvas.getContext('2d');
-  const overlay = document.getElementById('overlay');
+    <div id="controls">
+        <!-- Batting Controls -->
+        <button class="control-button" id="moveLeft">Move Left</button>
+         <button class="control-button red" id="groundedShotButton" style="display: none;">Grounded Shot</button> <!-- Grounded Shot Button -->
+         <button class="control-button orange" id="loftedShotButton" style="display: none;">Lofted Shot</button> <!-- Lofted Shot Button -->
+        <button class="control-button" id="moveRight">Move Right</button>
+         <!-- Bowling Controls -->
+         <button class="control-button blue" id="bowlButton" style="display: none;">Bowl</button> <!-- Bowl Button -->
+    </div>
 
-  // Game Constants
-  const GAME_WIDTH = canvas.width;
-  const GAME_HEIGHT = canvas.height;
-  const PITCH_Y = GAME_HEIGHT / 2;
-  const PITCH_WIDTH = GAME_WIDTH * 0.8;
-  const PITCH_START_X = (GAME_WIDTH - PITCH_WIDTH) / 2;
-  const PITCH_END_X = PITCH_START_X + PITCH_WIDTH;
-  const WICKET_WIDTH = 5;
-  const WICKET_HEIGHT = 30;
-  const BALL_RADIUS = 8;
-  const BATSMAN_WIDTH = 20;
-  const BATSMAN_HEIGHT = 40;
-  const BOWLER_WIDTH = 20;
-  const BOWLER_HEIGHT = 40;
-  const BAT_LENGTH = 40; // Length from pivot
-  const BAT_SWING_ARC = Math.PI / 1.5; // Angle of swing
-  const BAT_SWING_SPEED = 0.2; // How fast the bat swings per frame
-  const MAX_BALL_SPEED = 10;
-  const MIN_BALL_SPEED = 5;
-  const MAX_SWING_POWER_MULTIPLIER = 1.5; // Max speed multiplier when hitting
-  const OVERS_PER_INNINGS = 5;
-  const WICKETS_PER_INNINGS = 5; // Game ends if this many wickets fall
-
-  // Game State
-  let game = {
-    state: 'Loading', // Loading, Menu, Toss, Playing, InningsBreak, GameOver
-    score: { player: 0, ai: 0 },
-    wickets: { player: 0, ai: 0 },
-    overs: { current: 0, deliveries: 0 },
-    totalOvers: OVERS_PER_INNINGS,
-    maxWickets: WICKETS_PER_INNINGS,
-    battingTeam: null, // 'player' or 'ai'
-    bowlingTeam: null, // 'player' or 'ai'
-    tossResult: null, // 'player' or 'ai'
-    tossChoice: null, // 'bat' or 'bowl' - winner's choice
-    aiTossChoice: null, // 'heads' or 'tails'
-    playerTossChoice: null, // 'heads' or 'tails'
-    message: '',
-    ball: { x: 0, y: 0, dx: 0, dy: 0, radius: BALL_RADIUS, state: 'idle' }, // idle, bowling, batted
-    batsman: { x: PITCH_START_X + 50, y: PITCH_Y - BATSMAN_HEIGHT / 2, width: BATSMAN_WIDTH, height: BATSMAN_HEIGHT, batAngle: 0, swinging: false, swingProgress: 0 },
-    bowler: { x: PITCH_END_X - 50, y: PITCH_Y - BOWLER_HEIGHT / 2, width: BOWLER_WIDTH, height: BOWLER_HEIGHT },
-    joystick: { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0, centerX: 0, centerY: 0, radius: 50, angle: 0, power: 0 },
-    animationId: null,
-    innings: 1,
-    target: null,
-    lastBallAction: null, // 'score', 'wicket', 'dot', 'wide', 'no-ball' (simplified: score/wicket/dot)
-    canBowl: true, // Flag to prevent multiple bowls
-    canBat: true, // Flag to prevent multiple swings per delivery
-    inputActive: false // Flag to know if player input (joystick/bowl click) is relevant
-  };
-
-  // --- Drawing Functions ---
-  function drawPitch() {
-    ctx.fillStyle = '#c49a64'; // Brown pitch color
-    ctx.fillRect(PITCH_START_X, PITCH_Y - 20, PITCH_WIDTH, 40); // Pitch area
-    ctx.strokeStyle = '#eee';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(PITCH_START_X, PITCH_Y);
-    ctx.lineTo(PITCH_END_X, PITCH_Y);
-    ctx.stroke(); // Center line
-
-    // Wickets
-    ctx.fillStyle = '#eee';
-    ctx.fillRect(PITCH_START_X, PITCH_Y - WICKET_HEIGHT / 2, WICKET_WIDTH, WICKET_HEIGHT); // Batsman end wicket
-    ctx.fillRect(PITCH_END_X - WICKET_WIDTH, PITCH_Y - WICKET_HEIGHT / 2, WICKET_WIDTH, WICKET_HEIGHT); // Bowler end wicket
-  }
-
-  function drawBatsman() {
-    const b = game.batsman;
-    ctx.fillStyle = game.battingTeam === 'player' ? '#00f' : '#f00'; // Player blue, AI red
-    ctx.fillRect(b.x, b.y, b.width, b.height);
-
-    // Draw bat (simplified)
-    ctx.save();
-    ctx.translate(b.x + b.width / 2, b.y + b.height * 0.75); // Pivot point near hands/waist
-    ctx.rotate(b.batAngle);
-    // Bat is drawn downwards from pivot
-    ctx.fillStyle = '#8B4513'; // Brown color
-    ctx.fillRect(-5, -BAT_LENGTH, 10, BAT_LENGTH);
-    ctx.restore();
-  }
-
-  function drawBowler() {
-    const b = game.bowler;
-    ctx.fillStyle = game.bowlingTeam === 'player' ? '#00f' : '#f00'; // Player blue, AI red
-    ctx.fillRect(b.x, b.y, b.width, b.height);
-  }
-
-  function drawBall() {
-    const ball = game.ball;
-    if (ball.state === 'idle') return;
-    ctx.fillStyle = '#eee'; // White ball
-    ctx.beginPath();
-    ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  function drawScoreboard() {
-    ctx.fillStyle = '#fff';
-    ctx.font = '20px Arial';
-    ctx.textAlign = 'left';
-    const playerScore = `${game.score.player}/${game.wickets.player}`;
-    const aiScore = `${game.score.ai}/${game.wickets.ai}`;
-    const overs = `${game.overs.current}.${game.overs.deliveries}`;
-
-    let scoreText = `YOU: ${playerScore}`;
-    let opponentText = `AI: ${aiScore}`;
-    let oversText = `Overs: ${overs}`;
-    let targetText = game.innings === 2 ? `Target: ${game.target + 1}` : ''; // Need 1 more than target score
-
-    // Determine which score to show on left/right based on who is batting
-    if (game.battingTeam === 'player') {
-       ctx.fillText(scoreText, 20, 30);
-       ctx.fillText(opponentText, GAME_WIDTH - ctx.measureText(opponentText).width - 20, 30);
-    } else {
-        ctx.fillText(opponentText, 20, 30);
-        ctx.fillText(scoreText, GAME_WIDTH - ctx.measureText(scoreText).width - 20, 30);
-    }
+    <div id="scoreDisplay">
+        Score: 0/0 | Overs: 0.0
+    </div>
+     <div id="messageDisplay">
+         Select a mode from the menu!
+     </div>
 
 
-    ctx.textAlign = 'center';
-    ctx.fillText(oversText, GAME_WIDTH / 2, 30);
-
-    if (targetText) {
-        ctx.fillText(targetText, GAME_WIDTH / 2, 60);
-    }
-  }
-
-  function drawMessage() {
-      if (!game.message) return;
-      ctx.fillStyle = '#fff';
-      ctx.font = '24px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(game.message, GAME_WIDTH / 2, 100);
-  }
-
-  function drawJoystick() {
-      if (game.state !== 'Playing' || game.battingTeam !== 'player') return;
-
-      const j = game.joystick;
-      const size = j.radius * 2.5; // Make joystick area larger for easier touch
-
-      // Determine position - maybe bottom left?
-      j.centerX = GAME_WIDTH * 0.15;
-      j.centerY = GAME_HEIGHT * 0.85;
+    <script>
+        const canvas = document.getElementById('cricketCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameArea = document.getElementById('gameArea');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const messageDisplay = document.getElementById('messageDisplay');
+        const controlsDiv = document.getElementById('controls');
+        const menuScreen = document.getElementById('menuScreen');
+        const modeSelectionDiv = document.getElementById('modeSelection');
+        const tossScreen = document.getElementById('tossScreen');
+        const tossMessage = document.getElementById('tossMessage');
+        const tossResultDisplay = document.getElementById('tossResult');
+        const tossChoiceDiv = document.getElementById('tossChoice');
+        const inningsOverScreen = document.getElementById('inningsOverScreen');
+        const inningsOverTitle = document.getElementById('inningsOverTitle');
+        const inningsOverScore = document.getElementById('inningsOverScore');
+        const nextInningsButton = document.getElementById('nextInningsButton');
 
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(j.centerX, j.centerY, j.radius, 0, Math.PI * 2);
-      ctx.stroke(); // Base circle
-
-      // Draw thumb
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.beginPath();
-      ctx.arc(j.currentX, j.currentY, j.radius * 0.6, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Draw power indicator line
-      if (j.active) {
-           ctx.strokeStyle = '#0f0'; // Green
-           ctx.lineWidth = 3;
-           ctx.beginPath();
-           ctx.moveTo(j.centerX, j.centerY);
-           ctx.lineTo(j.currentX, j.currentY);
-           ctx.stroke();
-      }
-  }
+        const moveLeftButton = document.getElementById('moveLeft');
+        const moveRightButton = document.getElementById('moveRight');
+        const groundedShotButton = document.getElementById('groundedShotButton');
+        const loftedShotButton = document.getElementById('loftedShotButton');
+        const bowlButton = document.getElementById('bowlButton');
 
 
-  // --- Game Logic Functions ---
+        let gameActive = false; // Is the game currently running?
+        let animationFrameId = null; // To cancel the animation loop
 
-  function initGame() {
-      game.state = 'Menu';
-      game.score = { player: 0, ai: 0 };
-      game.wickets = { player: 0, ai: 0 };
-      game.overs = { current: 0, deliveries: 0 };
-      game.innings = 1;
-      game.target = null;
-      game.canBowl = true;
-      game.canBat = true;
-      game.ball.state = 'idle';
-      game.message = 'Click START to Play';
-      updateOverlay();
-  }
+        let bat = {
+            x: 0,
+            y: 0,
+            width: 0, // Will be calculated
+            height: 0, // Will be calculated
+            color: '#8B4513', // Brown
+            speed: 5, // Pixels per frame for movement (Reverted to 5)
+            swinging: false, // Is the bat currently swinging?
+            swingProgress: 0, // 0 to 1, progress of swing animation (simple)
+             swingDuration: 12, // How many frames the swing lasts (simple)
+             currentSwingFrame: 0, // Current frame of swing animation
+             swingAngle: 30, // Max angle in degrees for visual swing (simple)
+             swingDirection: 1, // 1 for right, -1 for left (based on ball/bat position)
+             intendedShotType: null // 'grounded', 'lofted', or null
+        };
 
-  function startGame() {
-      game.state = 'Toss';
-      game.message = 'Choose Heads or Tails';
-      updateOverlay();
-  }
+        let ball = {
+            x: 0,
+            y: 0,
+            radius: 0, // Will be calculated
+            color: '#B22222', // Red
+            dx: 0, // Ball velocity x
+            dy: 0, // Ball velocity y
+            speed: 0, // Current total speed (calculated from dx, dy)
+            isBowled: false, // Flag to know if ball is in play
+            isHit: false, // Flag to know if ball has been hit by bat
+            isGroundShot: false, // Flag for ground shot vs air shot (determined by hit)
+            isStopped: false // Flag if ball has been stopped by a fielder or crossed boundary
+        };
 
-  function handleToss(choice) {
-      game.playerTossChoice = choice;
-      const coin = Math.random() < 0.5 ? 'heads' : 'tails';
-      game.tossResult = (game.playerTossChoice === coin) ? 'player' : 'ai';
+         let fielders = []; // Array to hold fielder objects {x, y, radius, speed}
 
-      if (game.tossResult === 'player') {
-          game.message = `You won the toss! Choose to Bat or Bowl.`;
-          updateOverlay('chooseBatBowl');
-      } else {
-          game.aiTossChoice = Math.random() < 0.5 ? 'bat' : 'bowl'; // AI randomly chooses
-          game.tossChoice = game.aiTossChoice;
-          game.message = `AI won the toss and chose to ${game.aiTossChoice}.`;
-          setInningsRoles();
-          updateOverlay('tossResult'); // Show result, then start game
-      }
-  }
+        // --- Game State Variables ---
+        let ballsThisOver = 0;
+        let currentMode = null; // 'T10', 'ODI', 'TEST'
+        let opponentType = 'AI'; // Only AI vs Player for now
+        let currentTurn = null; // 'player_batting', 'ai_batting', 'player_bowling', 'ai_bowling'
+        let gamePhase = 'menu'; // 'menu', 'toss', 'awaiting_delivery', 'ball_in_play', 'delivery_over', 'innings_over', 'game_over'
+        let currentInnings = 0; // 0 until game starts
 
-  function handleTossChoice(choice) {
-      game.tossChoice = choice;
-      game.message = `You chose to ${choice}.`;
-      setInningsRoles();
-      updateOverlay('tossResult'); // Show result, then start game
-  }
+        let team1Name = "Player";
+        let team2Name = "AI";
 
-  function setInningsRoles() {
-      if (game.tossResult === 'player') {
-          game.battingTeam = game.tossChoice;
-          game.bowlingTeam = game.tossChoice === 'bat' ? 'ai' : 'player';
-      } else { // AI won toss
-          game.battingTeam = game.aiTossChoice;
-          game.bowlingTeam = game.aiTossChoice === 'bat' ? 'ai' : 'player';
-      }
-      // Swap batsman/bowler positions based on who is batting
-      if (game.battingTeam === 'ai') {
-          game.batsman.x = PITCH_END_X - 50 - BATSMAN_WIDTH;
-          game.bowler.x = PITCH_START_X + 50;
-      } else {
-          game.batsman.x = PITCH_START_X + 50;
-          game.bowler.x = PITCH_END_X - 50 - BOWLER_WIDTH;
-      }
-  }
+        let team1Score = { runs: 0, wickets: 0, overs: 0 }; // Player's score
+        let team2Score = { runs: 0, wickets: 0, overs: 0 }; // AI's score
 
 
-  function startInnings() {
-    // Reset relevant state for new innings
-    game.score[game.battingTeam] = 0;
-    game.wickets[game.battingTeam] = 0;
-    game.overs = { current: 0, deliveries: 0 };
-    game.ball.state = 'idle';
-    game.canBowl = true;
-    game.canBat = true;
-    game.lastBallAction = null;
-    game.message = game.battingTeam === 'player' ? 'Your turn to bat!' : 'AI is batting!';
-    game.state = 'Playing';
-    updateOverlay(); // Hide overlay
-    // Ensure batsman/bowler are in correct starting positions
-     if (game.battingTeam === 'ai') {
-          game.batsman.x = PITCH_END_X - 50 - BATSMAN_WIDTH;
-          game.bowler.x = PITCH_START_X + 50;
-      } else {
-          game.batsman.x = PITCH_START_X + 50;
-          game.bowler.x = PITCH_END_X - 50 - BOWLER_WIDTH;
-      }
-  }
+        const STUMP_WIDTH_RATIO = 0.01;
+        const STUMP_HEIGHT_RATIO = 0.08;
+        const PITCH_Y_START_RATIO = 0.2; // Adjusted Y start for more outfield at bowler's end
+        const PITCH_Y_END_RATIO = 0.8; // Adjusted Y end for more outfield at batsman's end
+        const GROUND_LEVEL_Y_RATIO = 0.82; // Y position considered 'ground level' near batting crease (adjusted)
+        const BOUNDARY_PADDING_RATIO = 0.02; // Space between canvas edge and drawn boundary line
+        const PITCH_WIDTH_RATIO = 0.4; // Pitch width as fraction of canvas width
+
+        let stumpWidth = 0; // Calculated size
+        let stumpHeight = 0; // Calculated size
+        let stumpsY = 0; // Calculated position (at batting crease)
+        let stumpsX = []; // Calculated positions [left, middle, right]
+
+        let battingCreaseY = 0; // Calculated Y position of batting crease
+        let bowlingCreaseY = 0; // Calculated Y position of bowling crease
+        let groundLevelY = 0; // Calculated Y position for ground detection
+
+         // Fielder positions (ratios relative to canvas size - needs tuning)
+         // These will be starting positions and they will move dynamically
+         const initialFielderPositions = [
+             { x: 0.1, y: 0.3 }, // Slips/Gully
+             { x: 0.2, y: 0.25 }, // Point/Cover
+             { x: 0.4, y: 0.2 }, // Mid Off
+             { x: 0.6, y: 0.2 }, // Mid On
+             { x: 0.8, y: 0.25 }, // Mid Wicket/Square Leg
+             { x: 0.9, y: 0.3 }, // Deep Square Leg / Fine Leg
+             { x: 0.15, y: 0.5 }, // Backward Point
+             { x: 0.85, y: 0.5 }, // Backward Square Leg
+              { x: 0.5, y: 0.08 } // Deep Straight Fielder
+         ];
+
+         const fielderRadiusRatio = 0.01; // Fielder size relative to canvas width
+         const fielderMoveSpeedRatio = 0.005; // Fielder movement speed factor (relative to canvas size)
+
+         let bowlerPos = { x: 0, y: 0, radius: 0 };
+         let wicketKeeperPos = { x: 0, y: 0, radius: 0 };
 
 
-  function nextDelivery() {
-      game.overs.deliveries++;
-      game.ball.state = 'idle';
-      game.ball.dx = 0;
-      game.ball.dy = 0;
-      game.canBowl = true; // Allow next bowl
-      game.canBat = true; // Allow swing for next ball
-      game.joystick.active = false; // Reset joystick state
-      game.joystick.currentX = game.joystick.centerX;
-      game.joystick.currentY = game.joystick.centerY;
+        // --- Functions to Draw Elements ---
+
+        function drawField() {
+             // Draw outfield
+             ctx.fillStyle = '#556B2F'; // Darker green
+             ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+             // Draw boundary lines (simple rectangle inside the canvas edge)
+             ctx.strokeStyle = '#FFFFFF'; // White
+             ctx.lineWidth = 3;
+             const boundaryX = canvas.width * BOUNDARY_PADDING_RATIO;
+             const boundaryY = canvas.height * BOUNDARY_PADDING_RATIO;
+             const boundaryWidth = canvas.width * (1 - 2 * BOUNDARY_PADDING_RATIO);
+             const boundaryHeight = canvas.height * (1 - 2 * BOUNDARY_PADDING_RATIO);
+             ctx.strokeRect(boundaryX, boundaryY, boundaryWidth, boundaryHeight);
+
+             // Draw pitch area
+             ctx.fillStyle = '#8FBC8F'; // Lighter green for pitch
+             const pitchWidth = canvas.width * PITCH_WIDTH_RATIO; // Pitch width
+             const pitchHeight = canvas.height * (PITCH_Y_END_RATIO - PITCH_Y_START_RATIO + 0.05); // Slightly extend pitch area
+             const pitchX = (canvas.width - pitchWidth) / 2;
+             const pitchY = canvas.height * (PITCH_Y_START_RATIO - 0.025); // Start slightly above bowling crease
+
+             ctx.fillRect(pitchX, pitchY, pitchWidth, pitchHeight);
 
 
-      if (game.overs.deliveries >= 6) {
-          endOver();
-      } else {
-         // Message depends on who's bowling next ball
-         game.message = game.bowlingTeam === 'player' ? 'Click pitch to Bowl' : 'AI Bowling...';
-      }
+             // Draw pitch lines
+             ctx.strokeStyle = '#FFFFFF'; // White
+             ctx.lineWidth = 2;
 
-       // Check for innings end after updating overs/deliveries
-       if (game.wickets[game.battingTeam] >= game.maxWickets || (game.overs.current >= game.totalOvers && game.overs.deliveries === 0)) {
-           endInnings();
-       } else {
-            // In second innings, check if target is met
-           if (game.innings === 2 && game.score.player > game.target) {
-               endGame('player');
-           } else if (game.innings === 2 && game.score.ai > game.target) {
-               endGame('ai');
-           }
-       }
-  }
+             // Bowling crease
+             bowlingCreaseY = canvas.height * PITCH_Y_START_RATIO;
+             ctx.beginPath();
+             ctx.moveTo(pitchX, bowlingCreaseY);
+             ctx.lineTo(pitchX + pitchWidth, bowlingCreaseY);
+             ctx.stroke();
 
-  function endOver() {
-      game.overs.current++;
-      game.overs.deliveries = 0;
+             // Batting crease
+             battingCreaseY = canvas.height * PITCH_Y_END_RATIO; // Batting crease Y
+             ctx.beginPath();
+             ctx.moveTo(pitchX, battingCreaseY);
+             ctx.lineTo(pitchX + pitchWidth, battingCreaseY);
+             ctx.stroke();
 
-      if (game.wickets[game.battingTeam] < game.maxWickets && game.overs.current < game.totalOvers) {
-           game.message = `Over ${game.overs.current} completed.`;
-           // In a real game, ends switch. For simplicity, we just reset delivery count.
-      }
-      // Check for innings/game end handled in nextDelivery or EndInnings/EndGame calls
-  }
+             // Ground level reference (slightly below batting crease)
+             groundLevelY = canvas.height * GROUND_LEVEL_Y_RATIO;
 
-  function endInnings() {
-      game.message = `${game.battingTeam.toUpperCase()} Innings Ended. Score: ${game.score[game.battingTeam]}/${game.wickets[game.battingTeam]}.`;
 
-      if (game.innings === 1) {
-          game.target = game.score[game.battingTeam];
-          game.innings = 2;
-          // Swap roles for the second innings
-          const tempTeam = game.battingTeam;
-          game.battingTeam = game.bowlingTeam;
-          game.bowlingTeam = tempTeam;
-          game.state = 'InningsBreak';
-          updateOverlay('inningsBreak'); // Show innings break message
-      } else {
-          // End of second innings
-          const playerFinalScore = game.score.player;
-          const aiFinalScore = game.score.ai;
+             // Stumps at batting crease (AI batting target / Player bowling target)
+             stumpWidth = canvas.width * STUMP_WIDTH_RATIO;
+             stumpHeight = canvas.height * STUMP_HEIGHT_RATIO;
+             stumpsY = battingCreaseY - stumpHeight / 2; // Position stumps centered vertically on crease line (adjust as needed)
 
-          if (playerFinalScore > aiFinalScore) {
-              endGame('player');
-          } else if (aiFinalScore > playerFinalScore) {
-               endGame('ai');
-          } else {
-               endGame('tie'); // Should be rare with 4s/6s
-          }
-      }
-  }
+             const middleStumpX = canvas.width / 2;
+             stumpsX[0] = middleStumpX - stumpWidth * 1.5; // Left stump X
+             stumpsX[1] = middleStumpX - stumpWidth * 0.5; // Middle stump X
+             stumpsX[2] = middleStumpX + stumpWidth * 0.5; // Right stump X
 
-  function endGame(winner) {
-      game.state = 'GameOver';
-      if (winner === 'player') {
-          game.message = `Game Over! YOU WIN! Your Score: ${game.score.player}/${game.wickets.player}. AI Score: ${game.score.ai}/${game.wickets.ai}.`;
-      } else if (winner === 'ai') {
-          game.message = `Game Over! AI WINS! Your Score: ${game.score.player}/${game.wickets.player}. AI Score: ${game.score.ai}/${game.wickets.ai}.`;
-      } else {
-           game.message = `Game Over! It's a TIE! Your Score: ${game.score.player}/${game.wickets.player}. AI Score: ${game.score.ai}/${game.wickets.ai}.`;
-      }
-       updateOverlay('gameOver'); // Show game over message
-       cancelAnimationFrame(game.animationId); // Stop the game loop
-  }
+             ctx.fillStyle = '#A0522D'; // SaddleBrown color for stumps
+             ctx.fillRect(stumpsX[0], stumpsY, stumpWidth, stumpHeight);
+             ctx.fillRect(stumpsX[1], stumpsY, stumpWidth, stumpHeight);
+             ctx.fillRect(stumpsX[2], stumpsY, stumpWidth, stumpHeight);
 
-  // --- Ball & Bat Physics (Simplified) ---
+              // Stumps at bowling crease (Player batting target / AI bowling target)
+             const bowlingStumpsY = bowlingCreaseY - stumpHeight / 2;
+             const bowlingStumpsX = [
+                 middleStumpX - stumpWidth * 1.5,
+                 middleStumpX - stumpWidth * 0.5,
+                 middleStumpX + stumpWidth * 0.5
+             ];
+              ctx.fillRect(bowlingStumpsX[0], bowlingStumpsY, stumpWidth, stumpHeight);
+              ctx.fillRect(bowlingStumpsX[1], bowlingStumpsY, stumpWidth, stumpHeight);
+              ctx.fillRect(bowlingStumpsX[2], bowlingStumpsY, stumpWidth, stumpHeight);
 
-  function checkCollision() {
-      const ball = game.ball;
-      const bat = game.batsman;
 
-      // Simple collision check: Is ball near the bat's swing path when swinging?
-      if (game.battingTeam === 'player' && bat.swinging && game.canBat && ball.state === 'bowling') {
-         // Define the bat's current position (end point) based on angle
-         const pivotX = bat.x + bat.width / 2;
-         const pivotY = bat.y + bat.height * 0.75;
-         const batTipX = pivotX + Math.cos(bat.batAngle) * BAT_LENGTH;
-         const batTipY = pivotY + Math.sin(bat.batAngle) * BAT_LENGTH;
+             // Position the bat just above the batting crease (in front)
+             // Only position the bat visually here, its x position is handled by controls
+             bat.y = battingCreaseY - bat.height - (canvas.height * 0.005); // A small gap in front of crease
 
-         // Check distance from ball to bat tip or maybe the bat line segment
-         // Simplified: check distance from ball to the pivot + bat length along angle
-         const distToPivot = Math.sqrt(Math.pow(ball.x - pivotX, 2) + Math.pow(ball.y - pivotY, 2));
-         // Angle between pivot-to-ball and pivot-to-bat
-         const angleToBall = Math.atan2(ball.y - pivotY, ball.x - pivotX);
-         const angleDiff = Math.abs(angleToBall - bat.batAngle);
+        }
 
-         // Check if ball is within range and within a reasonable angle tolerance of the bat face
-         if (distToPivot < BAT_LENGTH + ball.radius && angleDiff < Math.PI / 6) { // Tolerance 30 degrees
-             handleBallHit();
-             game.canBat = false; // Bat can only hit once per delivery
+        // Draw a slightly more bat-like shape
+        function drawBat() {
+            ctx.save(); // Save current context state
+            ctx.translate(bat.x + bat.width / 2, bat.y + bat.height / 2); // Move origin to center of bat
+
+            // Apply swing rotation if swinging (simple rotation around bottom of bat)
+             if (bat.swinging) {
+                 const swingCompletion = bat.currentSwingFrame / bat.swingDuration; // 0 to 1
+                 // Simple swing animation: swing out to max angle and hold.
+                 const currentAngle = bat.swingAngle * swingCompletion; // Linear increase
+                 const swingAngleRad = currentAngle * Math.PI / 180;
+
+                 // Rotate around a point slightly below the bat's center (pivot near bottom)
+                 const pivotYOffset = bat.height * 0.4; // Adjust pivot point relative to center
+                 ctx.translate(0, pivotYOffset); // Move pivot to origin
+                 ctx.rotate(swingAngleRad * bat.swingDirection); // Apply rotation (positive for right, negative for left)
+                 ctx.translate(0, -pivotYOffset); // Move back
+             }
+
+
+            // Simple bat shape using paths
+            ctx.fillStyle = bat.color;
+            ctx.beginPath();
+            const handleHeight = bat.height * 0.4; // 40% handle
+            const bladeHeight = bat.height * 0.6; // 60% blade
+            const handleWidth = bat.width * 0.3; // Narrow handle
+            const bladeWidth = bat.width; // Full blade width
+
+            // Handle
+            ctx.rect(-handleWidth / 2, -bat.height / 2, handleWidth, handleHeight);
+
+            // Blade (simple taper at bottom)
+            ctx.moveTo(-bladeWidth / 2, -bat.height / 2 + handleHeight); // Top left of blade
+            ctx.lineTo(bladeWidth / 2, -bat.height / 2 + handleHeight); // Top right of blade
+            ctx.lineTo(bladeWidth / 2 * 0.9, bat.height / 2); // Bottom right (tapered)
+            ctx.lineTo(-bladeWidth / 2 * 0.9, bat.height / 2); // Bottom left (tapered)
+            ctx.closePath();
+
+            ctx.fill();
+
+            ctx.restore(); // Restore context state
+        }
+
+
+        // Draw a simple fielder circle
+        function drawFielder(fielder) {
+            ctx.fillStyle = '#000000'; // Black
+            ctx.beginPath();
+            ctx.arc(fielder.x, fielder.y, fielder.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+         // Draw a simple bowler representation
+         function drawBowler() {
+              ctx.fillStyle = '#333333'; // Dark grey
+              ctx.beginPath();
+              ctx.arc(bowlerPos.x, bowlerPos.y, bowlerPos.radius, 0, Math.PI * 2);
+              ctx.fill();
          }
-      }
-  }
 
-  function handleBallHit() {
-      const ball = game.ball;
-      const bat = game.batsman;
-      game.ball.state = 'batted';
-      game.message = 'HIT!';
-
-      // Calculate new direction based on bat angle and power
-      const hitAngle = bat.batAngle + (Math.random() - 0.5) * Math.PI / 8; // Add slight randomness
-      const hitPower = game.joystick.power / game.joystick.radius; // 0 to 1 based on drag distance
-
-      // Base speed + bonus from power
-      const speed = MIN_BALL_SPEED + (MAX_BALL_SPEED - MIN_BALL_SPEED) * 0.5 + hitPower * (MAX_BALL_SPEED - MIN_BALL_SPEED) * MAX_SWING_POWER_MULTIPLIER;
-
-      ball.dx = Math.cos(hitAngle) * speed;
-      ball.dy = Math.sin(hitAngle) * speed * 0.5; // Reduce vertical speed for more horizontal shots
-  }
+         // Draw a simple wicket keeper representation
+         function drawWicketKeeper() {
+              ctx.fillStyle = '#333333'; // Dark grey
+              ctx.beginPath();
+              ctx.arc(wicketKeeperPos.x, wicketKeeperPos.y, wicketKeeperPos.radius, 0, Math.PI * 2);
+              ctx.fill();
+         }
 
 
-  function checkScore() {
-      const ball = game.ball;
+        // Draw the ball
+        function drawBall() {
+            ctx.fillStyle = ball.color;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
 
-      if (ball.state === 'batted') {
-          // Ball hit by bat
-          if (ball.y < 0 || ball.y > GAME_HEIGHT) {
-              // Out of vertical bounds - count as 6
-              game.message = 'SIX!';
-              game.score[game.battingTeam] += 6;
-              game.lastBallAction = 'score';
-          } else if (ball.x < 0 || ball.x > GAME_WIDTH) {
-               // Out of horizontal bounds - count as 4
-              game.message = 'FOUR!';
-              game.score[game.battingTeam] += 4;
-              game.lastBallAction = 'score';
-          } else if (ball.x < PITCH_START_X || ball.x > PITCH_END_X) {
-              // Ball is off the pitch area but within field bounds (not 4 or 6)
-              // Wait for the ball to slow down/stop before next delivery
-              // For simplicity in V1, just consider it a dot ball once it stops
-              // Or, stop it after it travels a certain distance off the pitch
-              if (Math.abs(ball.dx) < 0.5 && Math.abs(ball.dy) < 0.5) { // Ball almost stopped
-                  game.message = 'No run.';
-                  game.lastBallAction = 'dot';
-                  // Reset ball state only *after* message has been seen or timed out?
-                  // Simpler: just call nextDelivery immediately after detecting it went off pitch but not boundary
-                  // Or, let it travel a bit, then trigger next delivery
-                  // Let's add a timeout before calling nextDelivery after a hit stays in field
-                   if (!game._hitTimer) { // Prevent multiple timers
-                     game._hitTimer = setTimeout(() => {
-                         game.message = 'No run.';
-                         game.lastBallAction = 'dot';
-                         nextDelivery();
-                         game._hitTimer = null;
-                     }, 1000); // Wait 1 second
+        // Main draw function
+        function draw() {
+            // Always draw the field, but hide game elements if not active in 'menu', 'toss', 'innings_over' phases
+            drawField(); // Draw field, pitch, and stumps
+
+            if (gamePhase !== 'menu' && gamePhase !== 'toss' && gamePhase !== 'innings_over') {
+                 // Draw game elements only if game is active phase
+                 drawBat(); // Bat is always drawn in game phases
+                 drawBowler(); // Bowler is always drawn
+                 drawWicketKeeper(); // Keeper is always drawn
+
+                 if(ball.isBowled) { // Only draw ball if it's in play
+                    drawBall();
+                 }
+
+                 // Draw fielders (dynamic positions)
+                 fielders.forEach(fielder => {
+                     drawFielder(fielder);
+                 });
+            }
+            // Menu/Toss/InningsOver screens are drawn on top via DOM positioning/z-index
+        }
+
+        // --- Game Logic & Update Functions ---
+
+        // Function to resize canvas and position elements
+        function resizeGame() {
+            canvas.width = gameArea.clientWidth;
+            canvas.height = gameArea.clientHeight;
+
+            // Calculate bat size and initial position
+            bat.width = canvas.width * 0.03; // Bat is 3% of canvas width
+            bat.height = canvas.height * 0.12; // Bat is 12% of canvas height
+            // bat.x is handled by player movement, but set a default center
+            bat.x = (canvas.width / 2) - (bat.width / 2);
+
+
+             // Ball radius relative to width
+             ball.radius = Math.max(5, canvas.width * 0.008); // Slightly smaller ball
+
+            // Fielder properties
+            const fielderRadius = canvas.width * fielderRadiusRatio;
+            const fielderSpeed = canvas.width * fielderMoveSpeedRatio;
+
+             // Initialize fielders if they haven't been already or resize existing ones
+             if (fielders.length === 0) {
+                 fielders = initialFielderPositions.map(pos => ({
+                      x: pos.x * canvas.width,
+                      y: pos.y * canvas.height,
+                      radius: fielderRadius,
+                      speed: fielderSpeed
+                 }));
+             } else {
+                  // Update radius and speed for existing fielders on resize
+                  fielders.forEach(fielder => {
+                       fielder.radius = fielderRadius;
+                       fielder.speed = fielderSpeed;
+                       // Note: Fielder positions should ideally scale too, but that requires storing their _relative_ position initially. For simplicity, they stay at their absolute calculated positions from the first resize/init for now. A proper implementation would store relative positions and recalculate absolute ones here.
+                  });
+             }
+
+
+             // Bowler & Keeper positions (relative to creases)
+             bowlerPos = {
+                 x: canvas.width / 2,
+                 y: bowlingCreaseY - (canvas.height * 0.02), // Slightly behind crease
+                 radius: canvas.width * 0.015 // Slightly larger
+             };
+              wicketKeeperPos = {
+                  x: canvas.width / 2, // Keeper behind the stumps
+                  y: battingCreaseY + (canvas.height * 0.02), // Slightly behind batting crease
+                  radius: canvas.width * 0.015 // Slightly larger
+              };
+
+
+            // Ball starting position will depend on bowling logic - place off screen
+             ball.x = (currentTurn === 'player_batting' ? bowlerPos.x : wicketKeeperPos.x);
+             ball.y = (currentTurn === 'player_batting' ? bowlerPos.y : wicketKeeperPos.y);
+             if (!ball.isBowled) { // If ball isn't currently in play, just reset its off-screen position
+                 ball.x = -ball.radius; // Hide it
+                 ball.y = bowlingCreaseY; // Default Y
+             }
+
+
+            // Redraw after resizing if game is active (draw handles showing/hiding elements)
+            draw();
+        }
+
+        // Update score display
+        function updateScoreDisplay() {
+             let currentScore = (currentTurn === 'player_batting' || currentTurn === 'player_bowling') ? team1Score : team2Score;
+              const balls = Math.round((currentScore.overs % 1) * 6);
+              scoreDisplay.textContent = `Score: ${currentScore.runs}/${currentScore.wickets} | Overs: ${Math.floor(currentScore.overs)}.${balls}`;
+        }
+
+         // Update message display
+         function updateMessageDisplay(message) {
+             messageDisplay.textContent = message;
+         }
+
+        // --- Input Handling ---
+        let movingLeft = false;
+        let movingRight = false;
+
+        // Generic function to handle button press state
+        function setMoveState(direction, isPressed) {
+            // Only allow movement controls if player is batting AND game is in ball_in_play or awaiting_delivery (for positioning)
+            if (currentTurn === 'player_batting' && (gamePhase === 'awaiting_delivery' || gamePhase === 'ball_in_play')) {
+                 if (direction === 'left') movingLeft = isPressed;
+                 if (direction === 'right') movingRight = isPressed;
+            } else {
+                 movingLeft = false;
+                 movingRight = false;
+            }
+        }
+
+        moveLeftButton.addEventListener('touchstart', (e) => { e.preventDefault(); setMoveState('left', true); });
+        moveLeftButton.addEventListener('touchend', (e) => { e.preventDefault(); setMoveState('left', false); });
+        moveLeftButton.addEventListener('mousedown', (e) => { e.preventDefault(); setMoveState('left', true); });
+        moveLeftButton.addEventListener('mouseup', (e) => { e.preventDefault(); setMoveState('left', false); });
+        moveLeftButton.addEventListener('mouseleave', (e) => { setMoveState('left', false); }); // Stop if mouse leaves button
+
+        moveRightButton.addEventListener('touchstart', (e) => { e.preventDefault(); setMoveState('right', true); });
+        moveRightButton.addEventListener('touchend', (e) => { e.preventDefault(); setMoveState('right', false); });
+        moveRightButton.addEventListener('mousedown', (e) => { e.preventDefault(); setMoveState('right', true); });
+        moveRightButton.addEventListener('mouseup', (e) => { e.preventDefault(); setMoveState('right', false); });
+        moveRightButton.addEventListener('mouseleave', (e) => { setMoveState('right', false); }); // Stop if mouse leaves button
+
+        // Handle Shot Buttons (Player Batting)
+        function handleShotButton(shotType) { // 'grounded' or 'lofted'
+             // Allow swing if player batting, ball is bowled (in play), and bat isn't already swinging
+             // Also check if the ball is reasonably close to the bat's Y position to prevent swinging too early/late
+             if (currentTurn === 'player_batting' && gamePhase === 'ball_in_play' && !bat.swinging && ball.y > bat.y - ball.radius * 2 && ball.y < bat.y + bat.height + ball.radius * 2) {
+                 bat.swinging = true;
+                 bat.currentSwingFrame = 0;
+                 bat.intendedShotType = shotType; // Set the intended shot type
+
+                 // Determine swing direction based on bat's current position relative to ball's expected path
+                 // Simple: Swing towards the side the ball is on relative to the bat
+                 const ballRelativeX = ball.x - (bat.x + bat.width / 2);
+                 bat.swingDirection = ballRelativeX > 0 ? 1 : -1; // Swing right if ball is to the right, left if to the left
+
+                 // If ball is coming straight (near bat center)
+                 if (Math.abs(ballRelativeX) < bat.width / 4) {
+                      // If bat is already way to one side, swing towards the middle
+                       if (bat.x + bat.width / 2 < canvas.width * 0.4) bat.swingDirection = 1; // Bat is left, swing right
+                       else if (bat.x + bat.width / 2 > canvas.width * 0.6) bat.swingDirection = -1; // Bat is right, swing left
+                       else bat.swingDirection = Math.random() < 0.5 ? 1 : -1; // Otherwise random
+                 }
+
+
+                 updateMessageDisplay(`Player attempts a ${shotType} shot!`);
+             } else if (currentTurn === 'player_batting' && gamePhase === 'awaiting_delivery') {
+                 updateMessageDisplay("Wait for the bowler!");
+             } else if (currentTurn === 'player_batting' && gamePhase === 'ball_in_play' && bat.swinging) {
+                 updateMessageDisplay("Already swinging!");
+             } else if (currentTurn === 'player_batting' && gamePhase === 'ball_in_play') {
+                 updateMessageDisplay("Too early or too late to swing!"); // Ball not close enough
+             }
+        }
+
+         groundedShotButton.addEventListener('click', () => {
+              handleShotButton('grounded');
+         });
+
+         loftedShotButton.addEventListener('click', () => {
+              handleShotButton('lofted');
+         });
+
+
+         // Handle Bowl Button (Player Bowling)
+         bowlButton.addEventListener('click', () => {
+             // Allow bowling if player bowling and ready for delivery
+             if (currentTurn === 'player_bowling' && gamePhase === 'awaiting_delivery') {
+                 playerBowl();
+             } else if (currentTurn === 'player_bowling' && gamePhase === 'ball_in_play') {
+                  updateMessageDisplay("Ball is already bowled!");
+             }
+         });
+
+
+        // --- Game Actions ---
+
+        // AI Bowl action
+        function aiBowl() {
+             if (currentTurn === 'player_batting' && gamePhase === 'awaiting_delivery') {
+                // Simple random variations for demonstration
+                const startX = bowlerPos.x + (Math.random() - 0.5) * canvas.width * 0.05; // Start slightly off-center
+                // Aim towards bat's current position for a simple challenge
+                const targetX = bat.x + bat.width / 2 + (Math.random() - 0.5) * bat.width * 0.8; // Aim near bat
+                 // Vary the target Y slightly for bounce variation (not true physics, just visual)
+                 const targetY = battingCreaseY + (Math.random() - 0.5) * canvas.height * 0.05; // Aim around batting crease
+
+                // Reduced speed factor for bowling
+                const speedFactor = 0.004 + Math.random() * 0.003; // Reduced range (e.g. 0.004 to 0.007)
+                 const totalDistanceY = targetY - bowlingCreaseY;
+                 const verticalSpeed = canvas.height * speedFactor;
+                 const timeToReachTargetY = totalDistanceY / verticalSpeed; // Estimate time based on Y
+
+                 const horizontalDistance = targetX - startX;
+                 const horizontalSpeed = horizontalDistance / timeToReachTargetY;
+
+
+                ball.x = startX;
+                ball.y = bowlingCreaseY;
+                ball.dx = horizontalSpeed;
+                ball.dy = verticalSpeed; // Always starts moving down towards batsman
+
+                ball.speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+                ball.isBowled = true;
+                ball.isHit = false;
+                ball.isGroundShot = false; // Reset ground shot flag
+                ball.isStopped = false; // Reset stopped flag
+                bat.intendedShotType = null; // Ensure this is reset for the delivery
+
+
+                gamePhase = 'ball_in_play';
+                updateMessageDisplay("Ball bowled!");
+                console.log("AI Bowled!");
+             }
+        }
+
+         // Player Bowl action (Simplified)
+         function playerBowl() {
+              if (currentTurn === 'player_bowling' && gamePhase === 'awaiting_delivery') {
+                   // Simple bowling: bowls from bowler's end towards AI stumps with some randomness
+                   const startX = bowlerPos.x + (Math.random() - 0.5) * canvas.width * 0.05; // Start slightly off-center
+                   const startY = bowlerPos.y;
+
+                   const targetX = canvas.width / 2 + (Math.random() - 0.5) * canvas.width * 0.08; // Aim near AI stumps
+                   const targetY = stumpsY; // Aim at AI stumps Y level (batting crease Y for AI)
+
+                    // Reduced speed factor for bowling
+                   const speedFactor = 0.004 + Math.random() * 0.003; // Reduced range (e.g. 0.004 to 0.007)
+                   const totalDistanceY = targetY - startY;
+                   const verticalSpeed = canvas.height * speedFactor; // Fixed vertical speed down the pitch
+
+                   const timeToReachTargetY = totalDistanceY / verticalSpeed;
+                   const horizontalDistance = targetX - startX;
+                   const horizontalSpeed = horizontalDistance / timeToReachTargetY;
+
+
+                   ball.x = startX;
+                   ball.y = startY;
+                   ball.dx = horizontalSpeed;
+                   ball.dy = verticalSpeed; // Bowl towards the other end
+
+                    ball.speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+                   ball.isBowled = true;
+                   ball.isHit = false;
+                   ball.isGroundShot = false;
+                   ball.isStopped = false;
+                    // bat.swinging is handled by AI batting logic later
+                    bat.intendedShotType = null; // Ensure this is reset
+
+
+                   gamePhase = 'ball_in_play';
+                   updateMessageDisplay("You bowled!");
+                   console.log("Player Bowled!");
+                   // AI batting logic will react in the update loop
+              }
+         }
+
+
+        // Handle ball resetting after play (wicket, boundary, end of over)
+        function resetBall() {
+             ball.dx = 0;
+             ball.dy = 0;
+             ball.isBowled = false;
+             ball.isHit = false;
+             ball.isGroundShot = false; // Reset ground shot flag
+             ball.isStopped = false; // Reset stopped flag
+             bat.swinging = false; // Reset swing state
+             bat.currentSwingFrame = 0;
+             bat.intendedShotType = null; // Reset intended shot type
+
+             // Position it near the appropriate end for the next delivery
+             ball.x = (currentTurn === 'player_batting') ? bowlerPos.x : wicketKeeperPos.x;
+             ball.y = (currentTurn === 'player_batting') ? bowlerPos.y : wicketKeeperPos.y;
+
+             gamePhase = 'delivery_over';
+             console.log("Ball reset.");
+
+             // After a short delay, process the delivery outcome and prepare for next
+             // The outcome (runs/wicket) is determined by collision handlers BEFORE resetBall
+             setTimeout(processDeliveryOutcome, 1500); // Wait 1.5 seconds
+        }
+
+         // Process outcome after a delivery finishes (ball out of play, stopped, wicket)
+         // This function is called by collision handlers (wicket/boundary) or after ball leaves play area (dot/miss)
+         function processDeliveryOutcome(runsScored = 0, dismissalType = null) {
+             let battingTeamScoreObj = (currentTurn === 'player_batting') ? team1Score : team2Score;
+
+             // If there was a dismissal, update wickets and message
+             if (dismissalType) {
+                  battingTeamScoreObj.wickets++;
+                  updateMessageDisplay(`OUT! ${dismissalType}`);
+                  console.log(`Dismissal: ${dismissalType}`);
+             } else {
+                  // If no dismissal, add runs if any were scored
+                  if (runsScored > 0) {
+                       battingTeamScoreObj.runs += runsScored;
+                       updateMessageDisplay(`+${runsScored} run${runsScored === 1 ? '' : 's'}!`);
+                  } else {
+                       // If no runs and no wicket, it's a dot ball or a miss
+                        if (ball.isStopped) {
+                            updateMessageDisplay("Fielded!"); // Ball was hit but stopped
+                        } else if (!ball.isHit && (ball.y > battingCreaseY || ball.y < bowlingCreaseY)) {
+                             // Ball passed batsman or went past bowler's end without hit/wicket
+                             // Could be wide/miss etc.
+                              updateMessageDisplay("Missed / Dot ball.");
+                        } else if (ball.isHit && !ball.isStopped) {
+                            // Hit but didn't score/get wicket, and left the field (should be caught by isBallOutOfPlayArea if not a Boundary)
+                             updateMessageDisplay("Shot stopped or out of play."); // Placeholder
+                        } else {
+                            // Default dot ball outcome if nothing else triggered
+                             updateMessageDisplay("Dot ball.");
+                        }
+                  }
+             }
+
+
+             // Increment ball count for the batting team
+             ballsThisOver++;
+             // Note: Only increment balls/overs for the team *currently batting*.
+             // When switching turns, the ballsThisOver count should reset for the new batting team.
+             // This is handled by `startNextInnings`.
+             if (ballsThisOver >= 6) {
+                 ballsThisOver = 0;
+                 battingTeamScoreObj.overs++; // Increment full over
+                 updateMessageDisplay(`Over ${Math.floor(battingTeamScoreObj.overs)} completed.`);
+             }
+             // Update total overs with fractional balls
+             battingTeamScoreObj.overs = Math.floor(battingTeamScoreObj.overs) + ballsThisOver / 6;
+             updateScoreDisplay();
+
+
+             // Check for end of innings conditions: All Out (10 wickets) or Overs Limit
+             const maxOvers = getMaxOvers(currentMode);
+             const isAllOut = battingTeamScoreObj.wickets >= 10;
+             const isOversUp = (maxOvers !== Infinity && battingTeamScoreObj.overs >= maxOvers);
+
+             console.log(`Processed Delivery: Runs=${runsScored}, Wicket=${dismissalType ? dismissalType : 'None'}, BallsThisOver=${ballsThisOver}, Overs=${battingTeamScoreObj.overs.toFixed(1)}`);
+
+
+             if (isAllOut || isOversUp) {
+                 endInnings();
+             } else {
+                 // If innings is not over, prepare for the next delivery
+                 gamePhase = 'awaiting_delivery';
+
+                 // Trigger the next delivery based on who is bowling
+                 if (currentTurn === 'player_batting') { // Player batting, AI bowls
+                      updateMessageDisplay("Waiting for AI to bowl...");
+                      setTimeout(aiBowl, 1000); // AI bowls after 1 second delay
+                 } else if (currentTurn === 'player_bowling') { // Player bowling, AI batting
+                       updateMessageDisplay("You are bowling. Bowl the next ball.");
+                       // Player initiates bowling via button click
+                 }
+             }
+         }
+
+
+        // Triggered when a wicket occurs (stumps, catch, etc.)
+        function handleWicket(dismissalType) {
+             // Update score/message and reset ball state, then process delivery outcome
+             // The processDeliveryOutcome function will handle adding to wicket count and message
+             processDeliveryOutcome(0, dismissalType); // Process outcome (0 runs, given dismissal)
+             // resetBall() is called by processDeliveryOutcome now
+        }
+
+        // Triggered when a boundary is hit
+        function handleBoundary(runs) {
+             // Update score/message and reset ball state, then process delivery outcome
+              processDeliveryOutcome(runs, null); // Process outcome (given runs, no dismissal)
+             // resetBall() is called by processDeliveryOutcome now
+        }
+
+         // Check for Ball-Stump Collision (only when ball is bowled and not hit/stopped)
+         function checkStumpCollision() {
+              // Determine which stumps to check based on who is batting
+              const targetStumpsY = (currentTurn === 'player_batting') ? stumpsY : bowlingCreaseY - stumpHeight / 2;
+              const targetStumpsX = (currentTurn === 'player_batting') ? stumpsX : [
+                  canvas.width / 2 - stumpWidth * 1.5,
+                  canvas.width / 2 - stumpWidth * 0.5,
+                  canvas.width / 2 + stumpWidth * 0.5
+              ];
+
+              // Check only if ball is bowled, hasn't been hit or stopped, and is near the target crease
+              if (ball.isBowled && !ball.isHit && !ball.isStopped && ball.y > targetStumpsY && ball.y < targetStumpsY + stumpHeight) {
+                 // Check if ball's horizontal position overlaps with any stump
+                 for (let i = 0; i < targetStumpsX.length; i++) {
+                      // Allow a small tolerance
+                     if (ball.x + ball.radius * 0.5 > targetStumpsX[i] && ball.x - ball.radius * 0.5 < targetStumpsX[i] + stumpWidth) {
+                         // Collision detected with a stump!
+                         console.log("Stump hit!");
+                          handleWicket('Bowled'); // Trigger wicket flow
+                         return true; // Collision happened
+                     }
+                 }
+             }
+             return false; // No collision with stumps
+         }
+
+
+        // Check for Bat-Ball Collision
+         function checkBatCollision() {
+              // Only check if ball is bowled, hasn't been hit or stopped, and is near the bat's Y position
+              if (ball.isBowled && !ball.isHit && !ball.isStopped && ball.y + ball.radius > bat.y && ball.y - ball.radius < bat.y + bat.height) {
+
+                   // Check if ball's X position overlaps with the bat's X position
+                   if (ball.x + ball.radius > bat.x && ball.x - ball.radius < bat.x + bat.width) {
+
+                       console.log("Hit detected!");
+                       ball.isHit = true; // Mark as hit
+
+                       // --- Basic Physics Simulation based on Shot Type ---
+                       const batCenterX = bat.x + bat.width / 2;
+                       const hitOffsetX = ball.x - batCenterX; // Negative if hit left of center, positive if right
+
+                       // Base horizontal push depends on hit location and bat direction
+                       let horizontalPush = hitOffsetX * 0.5; // Push away from bat center
+
+                       // Add horizontal push from bat's movement speed (if player batting)
+                        if (currentTurn === 'player_batting') {
+                            if (movingLeft) horizontalPush -= bat.speed * 1.5; // Push more left if moving left
+                            if (movingRight) horizontalPush += bat.speed * 1.5; // Push more right if moving right
+                        } else { // AI batting - add randomness
+                             horizontalPush += (Math.random() - 0.5) * canvas.width * 0.005;
+                        }
+
+
+                       // Determine vertical velocity and ground shot state based on intended shot type (player) or simple AI logic
+                       if (currentTurn === 'player_batting' && bat.intendedShotType !== null) {
+                           if (bat.intendedShotType === 'lofted') {
+                                ball.isGroundShot = false;
+                                // Apply significant upward (negative) vertical velocity
+                                ball.dy = -Math.abs(ball.dy) * (1.5 + (bat.swinging ? bat.currentSwingFrame / bat.swingDuration * 1.0 : 0)); // Stronger upward push, more if swinging/late swing
+                                 // updateMessageDisplay("Lofted shot!"); // Message set by button click
+                           } else { // grounded
+                                ball.isGroundShot = true;
+                                // Apply downward (positive) or slightly upward but quickly falling velocity
+                                ball.dy = Math.abs(ball.dy) * 0.5 + canvas.height * 0.001; // Bounce forward/down off the bat
+                                // updateMessageDisplay("Grounded shot!"); // Message set by button click
+                           }
+                           // Add influence from swing direction to horizontal push if player swinging
+                           if(bat.swinging) {
+                                horizontalPush += bat.swingDirection * canvas.width * (0.005 + (bat.currentSwingFrame / bat.swingDuration) * 0.005); // Stronger push if swinging
+                           }
+
+                       } else if (currentTurn === 'player_bowling') { // AI batting
+                           // Simple AI shot logic (mostly ground shots, some air shots) based on its intendedShotType (set during AI swing trigger)
+                            if (bat.intendedShotType === 'lofted') {
+                                ball.isGroundShot = false;
+                                ball.dy = -Math.abs(ball.dy) * (1.0 + (bat.swinging ? Math.random() * 0.5 : 0)); // Upward push
+                                // updateMessageDisplay("AI plays an air shot.");
+                            } else { // AI intended 'grounded' or no specific type set (default grounded)
+                                ball.isGroundShot = true;
+                                ball.dy = Math.abs(ball.dy) * 0.5 + canvas.height * 0.001;
+                                // updateMessageDisplay("AI plays a ground shot.");
+                            }
+                            // Add influence from AI swing direction (if AI was swinging)
+                            if(bat.swinging) { // AI swing
+                                // Simple AI swing direction logic (e.g., random or towards side)
+                                const aiSwingDirection = (Math.random() < 0.5) ? 1 : -1; // Random direction for AI swing push
+                                horizontalPush += aiSwingDirection * canvas.width * (0.005 + (bat.currentSwingFrame / bat.swingDuration) * 0.005);
+                            }
+
+                       }
+
+                       ball.dx = horizontalPush;
+
+                      // Reset intended shot type AFTER processing the hit (both player and AI)
+                      // This is handled by the end of the swing animation or resetBall
+
+                       // No runs added here. Runs are added when the ball leaves the field *after* being hit,
+                       // or prevented by a fielder.
+
+                       return true; // Collision happened
                    }
               }
+              return false; // No collision
+         }
 
-          } else {
-             // Ball is still on the pitch area after being hit - maybe hit wicket?
-             // Or it will just go off the side eventually
-             // We handle wicket check below
-             // If it stays on pitch but doesn't hit wicket, maybe it was caught?
-             // For V1, assume anything on pitch after hit is either wicket or will eventually go off.
-             // Let's not trigger nextDelivery yet, let it move.
-          }
+         // Check for Fielder-Ball Collision (only if ball is hit and not stopped)
+         function checkFielderCollision() {
+              if (ball.isHit && !ball.isStopped) {
+                   const fielderRadius = fielders.length > 0 ? fielders[0].radius : canvas.width * fielderRadiusRatio; // Assuming all fielders same size
 
-      } else if (ball.state === 'bowling') {
-          // Ball bowled, not hit by bat
-          const batsmanWicketX = PITCH_START_X + WICKET_WIDTH / 2;
-          const batsmanWicketY = PITCH_Y;
+                   for (let i = 0; i < fielders.length; i++) {
+                        const fielder = fielders[i];
+                        // Simple distance check (circle collision)
+                        const distance = Math.sqrt(Math.pow(ball.x - fielder.x, 2) + Math.pow(ball.y - fielder.y, 2));
 
-          // Check if ball reached or passed batsman's wicket position
-          // Check needs to be based on the bowling direction
-          const reachedBatsman = (game.bowlingTeam === 'ai' && ball.x <= batsmanWicketX) ||
-                                 (game.bowlingTeam === 'player' && ball.x >= batsmanWicketX);
+                        // Use a slightly smaller detection radius for fielder to make catches/stops require closer proximity
+                        const collisionDistance = ball.radius + fielder.radius * 0.7; // Adjusted tolerance
 
-          if (reachedBatsman) {
-              // Check for Wicket (hitting the stumps area)
-              const wicketTop = PITCH_Y - WICKET_HEIGHT / 2;
-              const wicketBottom = PITCH_Y + WICKET_HEIGHT / 2;
-              const wicketLeft = PITCH_START_X; // Batsman end wicket X
-              const wicketRight = PITCH_START_X + WICKET_WIDTH;
+                        if (distance < collisionDistance) { // Collision detected
+                            console.log("Fielder collision!");
+                            ball.isStopped = true; // Mark ball as stopped
+                            ball.dx = 0;
+                            ball.dy = 0; // Stop the ball movement immediately
 
-              // Check if ball is within the wicket's horizontal and vertical bounds
-              if (ball.x >= wicketLeft && ball.x <= wicketRight &&
-                  ball.y >= wicketTop && ball.y <= wicketBottom) {
-                  game.message = 'WICKET!';
-                  game.wickets[game.battingTeam]++;
-                  game.lastBallAction = 'wicket';
-                  nextDelivery(); // End of delivery
-              } else {
-                  // Ball passed the wicket without hitting it
-                  // Check for Byes/Leg Byes? No, simpler: check for Wide/No-ball or just a miss (dot ball)
-                  // For simplicity, if it wasn't hit and didn't hit the wicket, it's a dot ball.
-                  // Or maybe check if it went wide?
-                   const WIDE_MARGIN_Y = 20; // How far vertically off the pitch line is a wide
-                   if (Math.abs(ball.y - PITCH_Y) > WIDE_MARGIN_Y &&
-                       ((game.bowlingTeam === 'ai' && ball.x < batsmanWicketX) ||
-                        (game.bowlingTeam === 'player' && ball.x > batsmanWicketX)) // Check after it passed wicket
-                       ) {
-                       // It's a wide or passed wide - count as dot for simplicity unless we add extras later
-                       game.message = 'Wide? No Run.'; // Simplified: just a miss
-                       game.lastBallAction = 'dot';
-                       nextDelivery();
-                   }
-                   else if (Math.abs(ball.x - batsmanWicketX) > 10){ // Passed wicket horizontally significantly
-                       game.message = 'Missed.';
-                       game.lastBallAction = 'dot';
-                       nextDelivery();
-                   }
-                   // else the ball might still be moving towards the wicket area or was hit slightly?
-                   // Only trigger nextDelivery if it clearly passed the wicket or was hit.
-                   // Let's refine: Trigger nextDelivery always after a ball reaches the batsman's wicket line if not hit/wicket.
-                   if (reachedBatsman && game.ball.state === 'bowling' && !game.canBat) { // If canBat is false, it means bat didn't connect
-                        game.message = game.lastBallAction || 'No run.'; // If no action yet, default to no run
-                         if (!game.lastBallAction) game.lastBallAction = 'dot'; // Ensure action is set
-                         nextDelivery();
+                            // Check if it was a catchable air shot or a stopable ground shot
+                            if (!ball.isGroundShot) { // Air shot
+                                 // Check if fielder is in a reasonable position/height to catch
+                                 // Simple check: is the fielder relatively close to the ball's Y position?
+                                 const catchableHeightTolerance = fielder.radius * 3; // Ball must be within this vertical range of the fielder center
+                                 if (Math.abs(ball.y - fielder.y) < catchableHeightTolerance) {
+                                      updateMessageDisplay("Caught!");
+                                       handleWicket('Caught'); // Trigger wicket flow
+                                 } else {
+                                      // Ball hit the fielder but was too high or too low to be a catch attempt
+                                      // Treat as ball stopping but no catch (maybe a deflection?) - could result in runs depending on rules, but simplify to 0 runs.
+                                       updateMessageDisplay("Fielded (Air Ball)!"); // Not a catch
+                                      // For simplicity, let this count as a fielded ball (0 runs, no wicket)
+                                      processDeliveryOutcome(0, null);
+                                 }
+
+                            } else { // Ground shot
+                                 updateMessageDisplay("Fielded!");
+                                 // No runs, end of delivery. Outcome is implicitly 0 runs, no wicket.
+                                 processDeliveryOutcome(0, null); // Process outcome (0 runs, no dismissal)
+                            }
+                            // resetBall() is called by processDeliveryOutcome now
+                            return true; // Collision happened
+                        }
                    }
               }
-          }
-      }
-
-      // After any score or wicket, check if innings or game is over
-      // This check is also done in nextDelivery, which is called by score/wicket actions.
-  }
+              return false; // No collision
+         }
 
 
-  // --- Input Handling ---
+        // Check for Ball-Boundary Collision/Exit (only if ball is hit and not stopped)
+         function checkBoundaryCollision() {
+              if (ball.isBowled && ball.isHit && !ball.isStopped) {
+                   const boundaryX1 = canvas.width * BOUNDARY_PADDING_RATIO;
+                   const boundaryY1 = canvas.height * BOUNDARY_PADDING_RATIO;
+                   const boundaryX2 = canvas.width * (1 - BOUNDARY_PADDING_RATIO);
+                   const boundaryY2 = canvas.height * (1 - BOUNDARY_PADDING_RATIO);
 
-  function handleMouseDown(event) {
-      event.preventDefault(); // Prevent default touch behavior like scrolling
+                   let runsScored = 0;
+                   let wentOutOfBounds = false;
 
-      const rect = canvas.getBoundingClientRect();
-      const mouseX = event.clientX - rect.left;
-      const mouseY = event.clientY - rect.top;
+                   // Check if ball is OUTSIDE any boundary
+                   // Use slightly more generous off-screen check for boundary detection itself
+                   const checkX1 = -ball.radius;
+                   const checkX2 = canvas.width + ball.radius;
+                   const checkY1 = -ball.radius;
+                   const checkY2 = canvas.height + ball.radius;
 
-      if (game.state === 'Playing') {
-          if (game.bowlingTeam === 'player' && game.ball.state === 'idle' && game.canBowl) {
-              // Player is bowling, initiate bowl
-              playerBowl(mouseX, mouseY);
-          } else if (game.battingTeam === 'player' && game.ball.state === 'bowling') {
-              // Player is batting, check for joystick interaction or swing click
-              const j = game.joystick;
-              const distToJoystickCenter = Math.sqrt(Math.pow(mouseX - j.centerX, 2) + Math.pow(mouseY - j.centerY, 2));
-              const joystickAreaRadius = j.radius * 2.5; // Same as draw area
 
-              if (distToJoystickCenter <= joystickAreaRadius) {
-                  // Started drag on joystick area
-                  j.active = true;
-                  j.startX = mouseX;
-                  j.startY = mouseY;
-                  j.currentX = mouseX; // Initialize thumb position
-                  j.currentY = mouseY;
-                  game.inputActive = true; // Input is related to batting control
-              } else if (game.inputActive) { // If input is active (joystick being used), a click outside swings
-                 playerBatSwing(); // Click anywhere while joystick active initiates swing
+                   if (ball.x < checkX1 || ball.x > checkX2 || ball.y < checkY1 || ball.y > checkY2) {
+                       // Ball is off the physical canvas, definitely out of bounds
+                        wentOutOfBounds = true;
+                        ball.isStopped = true; // Mark ball as stopped (it left the play area)
+
+
+                         // Determine runs based on which boundary was crossed LAST (simple check)
+                         // Check if it went over the defined white boundary line rectangle
+                         // Priority: Bottom (6), Top (6), then Sides (4) IF crossed the white line area
+                         if (ball.y > boundaryY2) { // Crossed bottom boundary
+                              runsScored = 6;
+                              updateMessageDisplay("Six!");
+                         } else if (ball.y < boundaryY1) { // Crossed top boundary
+                              runsScored = 6;
+                              updateMessageDisplay("Six!");
+                         } else if (ball.x < boundaryX1 || ball.x > boundaryX2) { // Crossed side boundaries
+                              runsScored = 4;
+                              updateMessageDisplay("Four!");
+                         }
+                         // Note: This doesn't handle bouncing 4s etc. It's a simple "did it cross a boundary line?" check.
+
+
+                        console.log(`Ball crossed boundary: ${runsScored} runs`);
+
+                        // Trigger scoring and end delivery
+                        handleBoundary(runsScored);
+                   }
+                   return wentOutOfBounds; // Return true if ball is now out of bounds
               }
-          }
-      }
-  }
+             return false; // No boundary collision / exit resulting in runs yet
+         }
 
-  function handleMouseMove(event) {
-       event.preventDefault();
-       if (game.state === 'Playing' && game.battingTeam === 'player' && game.joystick.active) {
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = event.clientX - rect.left;
-            const mouseY = event.clientY - rect.top;
+         // Check if ball is simply out of the main play area (used for dot balls/misses)
+         // This is a fallback if no other outcome (wicket, boundary, fielder stop) occurred.
+         function isBallOutOfPlayArea() {
+              // Define a generous play area encompassing the pitch and slightly beyond the creases
+              // This is different from the *boundary* check, this is just "is the ball still somewhere we care about?"
+               const playAreaX1 = 0 - ball.radius * 2; // Allows ball to go slightly off before being considered out
+               const playAreaX2 = canvas.width + ball.radius * 2;
+               const playAreaY1 = 0 - ball.radius * 2;
+               const playAreaY2 = canvas.height + ball.radius * 2;
 
-            const j = game.joystick;
+               // Check if ball is outside this area AND isBowled AND notStopped
+               if (ball.isBowled && !ball.isStopped) {
+                    if (ball.x < playAreaX1 || ball.x > playAreaX2 || ball.y < playAreaY1 || ball.y > playAreaY2) {
+                         // Ball left the general playable area.
+                         // If no other outcome (wicket, boundary, fielder stop) was triggered,
+                         // this delivery ends with 0 runs and no wicket (dot ball, wide, miss).
+                         console.log("Ball out of general play area.");
+                         ball.isStopped = true; // Mark ball as stopped as it's no longer in play
+                         // The processDeliveryOutcome call will determine the message
 
-            // Calculate distance and angle from center
-            let deltaX = mouseX - j.centerX;
-            let deltaY = mouseY - j.centerY;
-            const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                         processDeliveryOutcome(0, null); // Process outcome (0 runs, no dismissal)
+                         // resetBall() is called by processDeliveryOutcome now
 
-            // Clamp distance to joystick radius
-            if (dist > j.radius) {
-                deltaX = (deltaX / dist) * j.radius;
-                deltaY = (deltaY / dist) * j.radius;
+                         return true; // Ball was out of play area and handled
+                    }
+               }
+              return false; // Ball is still within the defined play area
+         }
+
+
+        // Determine max overs for a mode
+        function getMaxOvers(mode) {
+            switch(mode) {
+                case 'T10': return 10;
+                case 'ODI': return 50;
+                case 'TEST': return Infinity; // Placeholder for test - needs innings logic
+                default: return 0; // Should not happen
+            }
+        }
+
+         // --- Innings Management ---
+
+         function endInnings() {
+             gameActive = false; // Pause game loop visuals
+             gamePhase = 'innings_over';
+
+             // Determine which team just finished batting
+             let finishedBattingTeam = (currentTurn === 'player_batting') ? team1Name : team2Name; // Correct team based on turn
+             let finishedScore = (currentTurn === 'player_batting') ? team1Score : team2Score; // Correct score obj
+             let chasingTeamScore = (currentTurn === 'player_batting') ? team2Score : team1Score; // Correct score obj
+             let chasingTeamName = (currentTurn === 'player_batting') ? team2Name : team1Name; // Correct team name
+
+             // Get the score of the team that batted *first* in this match (for target setting)
+             const team1BattedFirst = (currentInnings === 1 && currentTurn === 'player_batting') || (currentInnings === 2 && currentTurn === 'player_bowling'); // Check if team1 was the first to bat
+             const firstInningsScore = team1BattedFirst ? team1Score : team2Score;
+
+
+             inningsOverTitle.textContent = `${finishedBattingTeam}'s Innings Over`;
+             inningsOverScore.textContent = `Score: ${finishedScore.runs}/${finishedScore.wickets} in ${Math.floor(finishedScore.overs)}.${Math.round((finishedScore.overs % 1) * 6)} Overs`;
+
+             // Determine next action/game result
+             const maxOvers = getMaxOvers(currentMode);
+
+             // --- Check Game End Conditions ---
+             // Condition 1: 2nd Innings complete (in Limited Overs) and target reached/failed
+             if (currentInnings === 2 && currentMode !== 'TEST') {
+                  const target = firstInningsScore.runs + 1; // Target is 1 more than first innings score
+
+                  if (finishedScore.runs >= target) {
+                      // Chasing team won
+                       inningsOverTitle.textContent = "Game Over!";
+                       updateMessageDisplay(`${finishedBattingTeam} Wins by ${10 - finishedScore.wickets} wickets!`);
+                       nextInningsButton.textContent = "Play Again?";
+                       nextInningsButton.onclick = () => { location.reload(); }; // Reload page to restart
+                  } else if (finishedScore.runs === firstInningsScore.runs && finishedScore.wickets === 10 || finishedScore.overs >= maxOvers) {
+                       // Tie condition (runs equal AND innings complete)
+                        inningsOverTitle.textContent = "Game Over!";
+                       updateMessageDisplay("Match Tied!");
+                       nextInningsButton.textContent = "Play Again?";
+                       nextInningsButton.onclick = () => { location.reload(); };
+                  }
+                   else {
+                       // Team 1 won (AI ran out of wickets/overs before reaching target)
+                       inningsOverTitle.textContent = "Game Over!";
+                       updateMessageDisplay(`${firstInningsScore.runs > finishedScore.runs ? team1Name : team2Name} Wins by ${Math.abs(firstInningsScore.runs - finishedScore.runs)} runs!`); // Winner is the one with more runs
+                       nextInningsButton.textContent = "Play Again?";
+                       nextInningsButton.onclick = () => { location.reload(); };
+                   }
+
+             }
+             // Condition 2: End of 1st Innings in Limited Overs
+              else if (currentInnings === 1 && currentMode !== 'TEST') {
+                 updateMessageDisplay(`Target for ${chasingTeamName}: ${finishedScore.runs + 1} runs.`);
+                 nextInningsButton.textContent = `Start ${chasingTeamName} Innings`;
+                 nextInningsButton.onclick = () => { startNextInnings(); };
+             }
+             // Condition 3: Test Match Innings End (needs more complex state tracking)
+              else if (currentMode === 'TEST') {
+                  updateMessageDisplay(`End of Innings ${currentInnings}.`);
+                   // Test match logic is complex (follow-on, cumulative scores, win/draw/loss conditions)
+                   // For simplicity, in this basic implementation, just allow switching turns for 4 innings.
+                   // The actual Test match win/loss/draw logic isn't fully robust.
+
+                   if (currentInnings < 4) { // Allow up to 4 innings for basic test simulation
+                        let nextBattingTeamName;
+                        if (currentTurn === 'player_batting') { // Player batted (I1 or I3), AI bowls next (AI batting)
+                             nextBattingTeamName = team2Name;
+                             updateMessageDisplay(`${team2Name} batting next.`);
+                        } else { // AI batted (I2 or I4), Player bowls next (Player batting)
+                             nextBattingTeamName = team1Name;
+                              updateMessageDisplay(`${team1Name} batting next.`);
+                        }
+                        nextInningsButton.textContent = `Start Innings ${currentInings + 1} (${nextBattingTeamName} batting)`;
+                        nextInningsButton.onclick = () => { startNextInnings(); };
+                   } else {
+                       // End of Innings 4 - Game Over (Need more robust Test end logic here)
+                       inningsOverTitle.textContent = "Game Over (Test Match Logic Incomplete)";
+                       updateMessageDisplay("Basic Test simulation ended after 4 innings. Win/Loss/Draw logic not fully implemented.");
+                       nextInningsButton.textContent = "Play Again?";
+                       nextInningsButton.onclick = () => { location.reload(); };
+                   }
+
+             }
+
+
+             inningsOverScreen.style.display = 'flex'; // Show innings over screen
+         }
+
+         function startNextInnings() {
+             inningsOverScreen.style.display = 'none'; // Hide innings over screen
+             currentInnings++;
+             ballsThisOver = 0; // Reset ball counter for the new innings
+
+             // Determine the *new* batting team
+             let newBattingTeamName = (currentTurn === 'player_batting') ? team2Name : team1Name; // If Player batted, AI bats next. If AI batted, Player bats next.
+
+             // Update the current turn state and reset score OBJECT for Limited Overs
+              if (newBattingTeamName === team1Name) { // Player is the new batting team
+                 currentTurn = 'player_batting';
+                 if (currentMode !== 'TEST') team1Score = { runs: 0, wickets: 0, overs: 0 }; // Reset score for Player in LO
+                 updateMessageDisplay(`Player batting - Innings ${currentInnings}.`);
+                 showBattingControls();
+              } else { // AI is the new batting team
+                 currentTurn = 'player_bowling'; // Player's perspective: Player is bowling
+                  if (currentMode !== 'TEST') team2Score = { runs: 0, wickets: 0, overs: 0 }; // Reset score for AI in LO
+                 updateMessageDisplay(`AI batting - Innings ${currentInnings}.`);
+                 showBowlingControls();
+              }
+
+
+             updateScoreDisplay();
+             resizeGame(); // Ensure positioning is correct (bat position etc.)
+
+             // Ensure game loop is active and trigger the first delivery of the new innings
+             gameActive = true; // Should already be true if game wasn't over
+             gamePhase = 'awaiting_delivery';
+
+             // Trigger first delivery of the innings based on who is bowling
+              if (currentTurn === 'player_batting') { // Player batting, AI bowling
+                   updateMessageDisplay("Waiting for AI to bowl...");
+                   setTimeout(aiBowl, 1500);
+              } else if (currentTurn === 'player_bowling') { // Player bowling, AI batting
+                   updateMessageDisplay("You are bowling. Bowl the first ball.");
+                   // Player initiates bowling with button click
+              }
+         }
+
+        // --- Toss Logic ---
+         function startToss(mode, opponent) {
+              currentMode = mode;
+              opponentType = opponent; // 'AI' for now
+
+              gamePhase = 'toss';
+              menuScreen.style.display = 'none';
+              tossScreen.style.display = 'flex';
+              tossMessage.textContent = "Flipping the coin...";
+              tossResultDisplay.style.display = 'none';
+              tossChoiceDiv.style.display = 'none';
+
+              setTimeout(() => {
+                  const playerWinsToss = Math.random() < 0.5;
+                  if (playerWinsToss) {
+                      tossResultDisplay.textContent = `${team1Name} wins the toss!`;
+                      tossResultDisplay.style.display = 'block';
+                      tossMessage.style.display = 'none'; // Hide "Flipping..."
+                      tossChoiceDiv.style.display = 'block'; // Show bat/bowl choice
+                  } else {
+                       tossResultDisplay.textContent = `${team2Name} wins the toss!`;
+                       tossResultDisplay.style.display = 'block';
+                       tossMessage.style.display = 'none'; // Hide "Flipping..."
+                       // AI chooses (always bats first for simplicity)
+                       setTimeout(() => {
+                            updateMessageDisplay(`${team2Name} chooses to bat.`);
+                            startInitialInnings('player_bowling'); // AI bats first, player bowls
+                       }, 1500);
+                  }
+              }, 2000); // Simulate coin flip delay
+         }
+
+         // Handle player's toss choice
+         tossChoiceDiv.querySelectorAll('button').forEach(button => {
+              button.addEventListener('click', () => {
+                   const choice = button.getAttribute('data-choice');
+                   updateMessageDisplay(`${team1Name} chooses to ${choice}.`);
+                   tossScreen.style.display = 'none';
+
+                   if (choice === 'bat') {
+                       startInitialInnings('player_batting'); // Player bats, AI bowls
+                   } else { // choice === 'bowl'
+                       startInitialInnings('player_bowling'); // Player bowls, AI bats
+                   }
+              });
+         });
+
+        // Start the very first innings after toss
+         function startInitialInnings(startingTurn) {
+             currentInnings = 1; // Start inning 1
+             ballsThisOver = 0; // Reset ball counter
+             currentTurn = startingTurn; // Set turn based on toss winner's choice
+
+             // Reset scores for both teams at the very start of the match
+             team1Score = { runs: 0, wickets: 0, overs: 0 };
+             team2Score = { runs: 0, wickets: 0, overs: 0 };
+
+             updateScoreDisplay();
+             resizeGame(); // Ensure game area is correct
+
+             gameActive = true; // Game is now active
+             gamePhase = 'awaiting_delivery';
+
+              if (currentTurn === 'player_batting') { // Player batting, AI bowling
+                   updateMessageDisplay(`Player batting - Innings ${currentInnings}. Waiting for AI to bowl...`);
+                   showBattingControls();
+                   setTimeout(aiBowl, 2000); // AI bowls first ball
+              } else if (currentTurn === 'player_bowling') { // Player bowling, AI batting
+                   updateMessageDisplay(`Player bowling - Innings ${currentInnings}. Bowl the first ball.`);
+                   showBowlingControls();
+                   // Player initiates bowling with button click
+              }
+             // AI vs AI is not implemented, so these are the only initial turns possible
+         }
+
+
+        // --- Game Loop ---
+        function update() {
+            // Request the next frame
+            animationFrameId = requestAnimationFrame(update);
+
+            if (!gameActive) {
+                 // Draw only the field/pitch/stumps when game is not active (menu, toss, innings over)
+                 // The menu/toss/innings over screens are DOM elements drawn on top.
+                 drawField(); // Draw the background elements
+                 return;
             }
 
-            j.currentX = j.centerX + deltaX;
-            j.currentY = j.centerY + deltaY;
 
-            // Calculate angle and power
-            j.angle = Math.atan2(deltaY, deltaX);
-            j.power = dist / j.radius; // Normalized power (0 to 1)
+            // --- Game Logic only runs if gameActive ---
 
-            // Set bat angle based on joystick angle
-            // Need to map joystick angle (-PI to PI) to bat swing angle (e.g., -PI/2 to 0 or PI/2)
-            // Joystick UP is typically towards top of canvas (negative Y). Bat swing up is towards PITCH_Y (less Y) or away from PITCH_Y depending on pivot.
-            // Let's assume angle 0 is right, PI/2 is down, PI is left, -PI/2 is up.
-            // We want joystick Up/Down to control vertical bat angle, Left/Right to control horizontal angle (less relevant in 2D side view)
-            // A simple mapping: Joystick Y position controls bat angle. Top of joystick range maps to max upward swing, bottom to max downward.
-            const swingRange = Math.PI / 2; // Example: Bat swings from horizontal (0) to vertical up/down (PI/2 or -PI/2) relative to a base position.
-            const baseAngle = 0; // Assume bat rests horizontally for now
-            // Map Y position from center -radius to center +radius -> swing from -swingRange/2 to +swingRange/2
-            // Negative deltaY is "up" on screen, positive deltaY is "down"
-            const mappedAngle = baseAngle + (deltaY / j.radius) * (swingRange / 2);
-            game.batsman.batAngle = mappedAngle; // Use this for drawing and collision
-        }
-  }
-
-  function handleMouseUp(event) {
-       event.preventDefault();
-       if (game.state === 'Playing' && game.battingTeam === 'player' && game.joystick.active) {
-            game.joystick.active = false;
-            // Optional: Trigger swing on release if no separate swing click/button
-            // playerBatSwing(); // Enable this line if swing is on joystick release
-            game.inputActive = false; // Input session ended
-       }
-  }
-
-  // Add touch support
-  function handleTouchStart(event) {
-      if (event.touches.length > 0) {
-          // Use the first touch point
-          handleMouseDown({
-              clientX: event.touches[0].clientX,
-              clientY: event.touches[0].clientY,
-              preventDefault: event.preventDefault,
-              target: event.target // Pass target for getBoundingClientRect
-          });
-      }
-  }
-
-  function handleTouchMove(event) {
-      if (event.touches.length > 0) {
-           handleMouseMove({
-              clientX: event.touches[0].clientX,
-              clientY: event.touches[0].clientY,
-              preventDefault: event.preventDefault,
-               target: event.target
-           });
-      }
-  }
-
-  function handleTouchEnd(event) {
-       handleMouseUp({ preventDefault: event.preventDefault }); // Simplified - doesn't need clientX/Y
-  }
-
-
-  // --- Game Actions ---
-
-  function playerBowl(mouseX, mouseY) {
-      if (game.ball.state !== 'idle' || !game.canBowl) return;
-
-      // Bowl originates near bowler
-      const startX = game.bowler.x + game.bowler.width / 2;
-      const startY = game.bowler.y + game.bowler.height / 2;
-
-      // Target is influenced by click position, but constrained towards the wicket
-      const targetX = PITCH_START_X + WICKET_WIDTH/2 + (mouseX - PITCH_START_X - WICKET_WIDTH/2) * 0.2; // Aim towards wicket area, slightly influenced by click
-      const targetY = PITCH_Y + (mouseY - PITCH_Y) * 0.5; // Influence vertical direction
-
-      const angle = Math.atan2(targetY - startY, targetX - startX);
-      const speed = MIN_BALL_SPEED + Math.random() * (MAX_BALL_SPEED - MIN_BALL_SPEED) * 0.5; // Base speed + randomness
-
-      game.ball.x = startX;
-      game.ball.y = startY;
-      game.ball.dx = Math.cos(angle) * speed;
-      game.ball.dy = Math.sin(angle) * speed;
-      game.ball.state = 'bowling';
-      game.canBowl = false; // Cannot bowl again until next delivery
-
-      game.message = 'Ball is bowled!';
-
-      // Reset bat angle for player
-       if (game.battingTeam === 'player') {
-           game.batsman.batAngle = 0; // Reset bat position
-           game.batsman.swinging = false;
-           game.batsman.swingProgress = 0;
-           game.canBat = true; // Allow bat input again
-           game.inputActive = false; // Reset input state
-           game.joystick.active = false;
-           game.joystick.currentX = game.joystick.centerX;
-           game.joystick.currentY = game.joystick.centerY;
-       }
-
-       // If AI is batting, trigger AI bat decision soon after ball is bowled
-       if (game.battingTeam === 'ai') {
-           setTimeout(aiBat, 500 + Math.random() * 500); // AI decides to bat after a short delay
-       }
-  }
-
-  function playerBatSwing() {
-      if (game.ball.state === 'bowling' && !game.batsman.swinging && game.canBat && game.battingTeam === 'player') {
-          game.batsman.swinging = true;
-          game.batsman.swingProgress = 0; // Start swing animation
-           // Bat angle is already set by joystick move handler
-      }
-  }
-
-  // --- AI Logic ---
-
-  function aiBowl() {
-       if (game.ball.state !== 'idle' || !game.canBowl) return;
-
-       // Bowl originates near AI bowler
-       const startX = game.bowler.x + game.bowler.width / 2;
-       const startY = game.bowler.y + game.bowler.height / 2;
-
-       // AI targets batsman wicket area with some randomness
-       const targetX = PITCH_END_X - WICKET_WIDTH/2 + (Math.random() - 0.5) * 30; // Target wicket area +- 15px
-       const targetY = PITCH_Y + (Math.random() - 0.5) * 20; // Target pitch center +- 10px vertical
-
-       const angle = Math.atan2(targetY - startY, targetX - startX);
-       const speed = MIN_BALL_SPEED * 0.8 + Math.random() * (MAX_BALL_SPEED - MIN_BALL_SPEED); // Slightly less minimum speed, more randomness
-
-       game.ball.x = startX;
-       game.ball.y = startY;
-       game.ball.dx = Math.cos(angle) * speed;
-       game.ball.dy = Math.sin(angle) * speed * (Math.random() > 0.8 ? 1.5 : 1); // Occasional faster/wider ball
-       game.ball.state = 'bowling';
-       game.canBowl = false;
-
-       game.message = 'AI is bowling...';
-
-        // Reset bat angle for player
-       if (game.battingTeam === 'player') {
-           game.batsman.batAngle = 0; // Reset bat position
-           game.batsman.swinging = false;
-           game.batsman.swingProgress = 0;
-           game.canBat = true; // Allow bat input again
-           game.inputActive = false; // Reset input state
-           game.joystick.active = false;
-           game.joystick.currentX = game.joystick.centerX;
-           game.joystick.currentY = game.joystick.centerY;
-       }
-  }
-
-   function aiBat() {
-       if (game.ball.state !== 'bowling' || !game.canBat || game.battingTeam !== 'ai') return;
-
-       const ball = game.ball;
-       const bat = game.batsman;
-       const wicketX = PITCH_END_X - WICKET_WIDTH / 2; // AI batsman's wicket X
-
-       // Simple AI: Check if ball is near the wicket AND within a reasonable vertical range
-       const distanceToWicketX = Math.abs(ball.x - wicketX);
-       const distThreshold = 150; // How close the ball needs to be horizontally
-       const verticalThreshold = 30; // How close the ball needs to be vertically to pitch center
-
-       if (distanceToWicketX < distThreshold && Math.abs(ball.y - PITCH_Y) < verticalThreshold) {
-           // Decide whether to swing (AI might sometimes miss intentionally or just not react)
-           if (Math.random() < 0.8) { // 80% chance to attempt a shot
-               game.batsman.swinging = true;
-               game.batsman.swingProgress = 0;
-               game.canBat = false; // AI swings once
-
-               // AI Swing Angle and Power (simple randomness)
-               // AI tries to hit straight or slightly angled
-               const baseAngle = Math.atan2(PITCH_Y - (bat.y + bat.height * 0.75), wicketX - (bat.x + bat.width / 2)); // Angle towards center/wicket
-               game.batsman.batAngle = baseAngle + (Math.random() - 0.5) * Math.PI / 4; // Base angle +/- 22.5 degrees
-               game.joystick.power = 0.5 + Math.random() * 0.5; // Power between 0.5 and 1
-           } else {
-               // AI decides not to swing or misses
-               game.message = 'AI missed';
-               game.canBat = false; // AI cannot swing this delivery now
-           }
-       } else if (ball.x < wicketX - 50 && game.canBat){ // If ball passes far from wicket without swing attempt
-            game.message = 'AI left it';
-            game.canBat = false; // AI decided not to swing
-       }
-   }
-
-  // --- Game Loop ---
-
-  function update() {
-      // Update ball position if it's moving
-      if (game.ball.state !== 'idle') {
-          game.ball.x += game.ball.dx;
-          game.ball.y += game.ball.dy;
-
-          // Apply simple friction/drag off the pitch
-          if (game.ball.state === 'batted' && (game.ball.x < PITCH_START_X || game.ball.x > PITCH_END_X)) {
-              game.ball.dx *= 0.98; // Reduce speed
-              game.ball.dy *= 0.98;
-          }
-
-
-          // Check boundaries/wickets (simplified scoring/wickets)
-          if (game.ball.state === 'bowling') {
-             checkCollision(); // Check for bat collision *while* bowling
-             // checkScore will be called if the ball reaches the batsman's wicket area without collision
-          } else if (game.ball.state === 'batted') {
-              checkScore(); // Check for boundary score or if ball stops
-          }
-
-
-          // If ball goes way off screen, reset it (handle edge case)
-           if (Math.abs(game.ball.x) > GAME_WIDTH * 2 || Math.abs(game.ball.y) > GAME_HEIGHT * 2) {
-               console.warn("Ball went far off screen, resetting.");
-               game.lastBallAction = 'dot'; // Assume it was a miss/stopped ball off screen
-               nextDelivery();
-           }
-      }
-
-      // Update batsman swing animation
-      if (game.batsman.swinging) {
-         game.batsman.swingProgress += BAT_SWING_SPEED;
-         // The bat angle should move from its starting position towards the target angle set by joystick/AI
-         // A simple animation: swing from current angle towards the stored j.angle/ai angle
-         // Let's make it simpler: when swinging, the angle smoothly moves *to* the set game.batsman.batAngle
-         // This requires storing the start angle when swing starts.
-         // Let's refine: When playerBatSwing or aiBat is called, store target angle. Animate from current angle to target.
-         // Re-simplifying: The bat angle is JUST set by the joystick (player) or AI decision. The `swinging` flag just enables collision detection during this time window.
-         // If swingProgress reaches 1 (or some threshold), reset swinging
-         if (game.batsman.swingProgress >= BAT_SWING_ARC) { // Use the arc size as a duration proxy
-            game.batsman.swinging = false;
-            game.batsman.swingProgress = 0; // Reset for next swing
-             // The bat angle should probably return to a ready position after swing?
-             // game.batsman.batAngle = 0; // Reset angle after swing animation
-         }
-      }
-
-      // Check game progress (overs, wickets, score, innings break, game over)
-      // These checks are primarily triggered by nextDelivery, endOver, endInnings, endGame
-      // Also need to trigger nextDelivery if a bowled ball reaches the batsman area and wasn't hit/wicket
-      if (game.ball.state === 'bowling' && !game.canBat) { // If bat input was checked but didn't hit
-           const batsmanWicketX = game.battingTeam === 'player' ? PITCH_START_X + WICKET_WIDTH/2 : PITCH_END_X - WICKET_WIDTH/2;
-            const reachedBatsman = (game.bowlingTeam === 'ai' && game.ball.x <= batsmanWicketX) ||
-                                   (game.bowlingTeam === 'player' && game.ball.x >= batsmanWicketX);
-           if (reachedBatsman) {
-                // Ball reached batsman area and wasn't hit or a wicket
-                // If checkScore didn't already trigger nextDelivery (e.g. for wide/miss)
-                // We need to ensure nextDelivery is called ONCE per completed ball
-                // Let's rely on checkScore or an explicit state change to trigger nextDelivery
-                // A simple timeout might be needed if checkScore doesn't handle all miss cases immediately.
-                // Let's add a check for ball passing the wicket area without hit/wicket.
-                 if (!game.lastBallAction && reachedBatsman && Math.abs(game.ball.x - batsmanWicketX) < 20 && game.ball.state === 'bowling') {
-                      game.message = 'No run.';
-                      game.lastBallAction = 'dot';
-                      nextDelivery();
+            // Bat movement (only if batting)
+            if (currentTurn === 'player_batting') {
+                 if (movingLeft) {
+                     bat.x -= bat.speed;
                  }
-           }
-      }
+                 if (movingRight) {
+                     bat.x += bat.speed;
+                 }
 
-       // If AI is bowling and ball is idle, initiate AI bowl
-       if (game.state === 'Playing' && game.bowlingTeam === 'ai' && game.ball.state === 'idle' && game.canBowl) {
-           setTimeout(aiBowl, 1000 + Math.random() * 1000); // AI bowls after a delay
-       }
-  }
+                 // Keep the bat within realistic horizontal bounds on the pitch area
+                 const pitchWidth = canvas.width * PITCH_WIDTH_RATIO;
+                 const pitchX1 = (canvas.width - pitchWidth) / 2;
+                 const pitchX2 = pitchX1 + pitchWidth;
+                 const batBoundaryPadding = canvas.width * 0.005; // Keep bat slightly away from pitch edge visual
+                 if (bat.x < pitchX1 - batBoundaryPadding) {
+                     bat.x = pitchX1 - batBoundaryPadding;
+                 }
+                 if (bat.x + bat.width > pitchX2 + batBoundaryPadding) {
+                     bat.x = pitchX2 + batBoundaryPadding - bat.width;
+                 }
+            } else if (currentTurn === 'player_bowling') { // AI is batting
+                 // --- Basic AI Batting Logic ---
+                 // AI stands near the stumps, tries to move bat towards the ball slightly
+                 // Only react if the ball is bowled and in play
+                 if (ball.isBowled && gamePhase === 'ball_in_play' && !ball.isStopped && !ball.isHit) { // AI only moves bat if ball is active and not yet hit
+                     const targetX = ball.x; // Move towards ball's horizontal position
+                     const aiBatSpeed = bat.speed * 0.5; // AI is slower to move bat
 
+                     if (bat.x + bat.width / 2 < targetX) {
+                         bat.x += aiBatSpeed;
+                     } else if (bat.x + bat.width / 2 > targetX) {
+                          bat.x -= aiBatSpeed;
+                     }
 
-  function draw() {
-    ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT); // Clear canvas
-
-    drawPitch();
-    drawBatsman();
-    drawBowler();
-    drawBall();
-    drawScoreboard();
-    drawMessage();
-
-    if (game.state === 'Playing' && game.battingTeam === 'player') {
-        drawJoystick();
-    }
-     // Other UI (Toss, Game Over) handled by overlay DOM
-  }
-
-  function gameLoop() {
-    update();
-    draw();
-    game.animationId = requestAnimationFrame(gameLoop);
-  }
-
-  // --- Overlay & UI Handlers ---
-  function updateOverlay(type = 'show') {
-      overlay.innerHTML = ''; // Clear current overlay content
-
-      if (type === 'hide') {
-          overlay.style.display = 'none';
-          return;
-      }
-
-      overlay.style.display = 'flex';
-
-      let content = '';
-
-      switch (game.state) {
-          case 'Loading':
-              content = '<h2>2D Cricket</h2><p>Loading...</p>'; // Should be quick
-              setTimeout(initGame, 100); // Initialize after a brief pause
-              break;
-          case 'Menu':
-              content = '<h2>2D Cricket</h2><p>Simple 2D Cricket Game</p><button onclick="startGame()">START GAME</button>';
-              break;
-          case 'Toss':
-              if (game.message) content += `<p>${game.message}</p>`;
-              if (!game.playerTossChoice) {
-                   content += `<div><button onclick="handleToss('heads')">Heads</button><button onclick="handleToss('tails')">Tails</button></div>`;
-              }
-              break;
-          case 'InningsBreak':
-              content = `<h2>Innings Break</h2><p>${game.message}</p><p>Current Score:</p><p>YOU: ${game.score.player}/${game.wickets.player} | AI: ${game.score.ai}/${game.wickets.ai}</p>`;
-              if (game.innings === 2) {
-                 content += `<p>${game.battingTeam === 'player' ? 'You' : 'AI'} need ${game.target + 1 - game.score[game.battingTeam]} runs to win.</p>`;
-              }
-              content += `<button onclick="startInnings()">Start ${game.innings} Innings</button>`;
-              break;
-          case 'GameOver':
-               content = `<h2>Game Over</h2><p>${game.message}</p><button onclick="initGame()">Play Again</button>`;
-               break;
-          case 'Playing':
-               // Overlay should be hidden in Playing state
-               overlay.style.display = 'none';
-               break;
-      }
-
-      // Special toss result phase - waits for user click to proceed after result is shown
-      if (type === 'tossResult') {
-           content = `<h2>Toss Result</h2><p>${game.message}</p><button onclick="startInnings()">Proceed to Innings ${game.innings}</button>`;
-      } else if (type === 'chooseBatBowl') {
-           content = `<h2>Toss Result</h2><p>${game.message}</p><div><button onclick="handleTossChoice('bat')">Bat</button><button onclick="handleTossChoice('bowl')">Bowl</button></div>`;
-      }
+                      // Keep AI bat within bounds too
+                      const pitchWidth = canvas.width * PITCH_WIDTH_RATIO;
+                      const pitchX1 = (canvas.width - pitchWidth) / 2;
+                       const pitchX2 = pitchX1 + pitchWidth;
+                       const batBoundaryPadding = canvas.width * 0.005;
+                      if (bat.x < pitchX1 - batBoundaryPadding) bat.x = pitchX1 - batBoundaryPadding;
+                      if (bat.x + bat.width > pitchX2 + batBoundaryPadding) bat.x = pitchX2 + batBoundaryPadding - bat.width;
 
 
-      overlay.innerHTML = content;
-  }
+                     // AI swing logic: swing when ball is close and near batting crease
+                      // Check if the ball is reasonably close to the bat's Y position
+                      if (ball.y > bat.y - ball.radius * 2 && ball.y < bat.y + bat.height + ball.radius * 2 && !bat.swinging) {
+                           // Small chance to swing (AI isn't perfect)
+                           if (Math.random() < 0.8) { // 80% chance to attempt a swing
+                                bat.swinging = true;
+                                bat.currentSwingFrame = 0;
+                                // AI decides shot type randomly or based on ball trajectory (simple random for now)
+                                bat.intendedShotType = Math.random() < 0.7 ? 'grounded' : 'lofted'; // AI mostly plays ground shots
+                                // AI swing direction towards the ball
+                                const ballRelativeX = ball.x - (bat.x + bat.width / 2);
+                                bat.swingDirection = ballRelativeX > 0 ? 1 : -1;
+
+                                 // updateMessageDisplay("AI swings!"); // Can be spammy
+                           }
+                      }
+                 } else if (!ball.isBowled || ball.isStopped || ball.isHit) { // Ball not in play or already dealt with
+                      // If ball not in play or already hit/stopped, AI bat stays centered
+                       bat.x = (canvas.width / 2) - (bat.width / 2);
+                       // Ensure swing state is reset if not swinging
+                       if (!bat.swinging) bat.intendedShotType = null;
+                 }
+            }
 
 
-  // --- Event Listeners ---
-  canvas.addEventListener('mousedown', handleMouseDown);
-  canvas.addEventListener('mousemove', handleMouseMove);
-  canvas.addEventListener('mouseup', handleMouseUp);
+            // Swing animation logic
+            if (bat.swinging) {
+                 bat.currentSwingFrame++;
+                 // Stop swinging animation after duration
+                 if (bat.currentSwingFrame >= bat.swingDuration) {
+                      bat.swinging = false;
+                      bat.currentSwingFrame = 0;
+                      bat.intendedShotType = null; // Ensure this is reset after the swing animation finishes
+                      // console.log("Swing animation ended.");
+                 }
+            }
 
-  canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-  canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-  canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+            // --- Ball Movement (only if bowled and in play) ---
+            if (ball.isBowled && !ball.isStopped && gamePhase === 'ball_in_play') {
+                ball.x += ball.dx;
+                ball.y += ball.dy;
+
+                // Apply simple vertical acceleration (gravity/bounce simulation)
+                // Make the ball 'bounce' or change dy when it hits the ground level
+                if (ball.y >= groundLevelY && ball.dy > 0) {
+                     ball.dy *= -0.7; // Bounce back up, losing some speed
+                     // Apply horizontal friction/slowing on the ground
+                     ball.dx *= 0.98; // Less friction on ground
+                     ball.isGroundShot = true; // Once it hits ground level, consider it a ground shot path
+                      // console.log("Ball hit ground level");
+                     // Prevent ball from sinking below ground
+                     ball.y = groundLevelY;
+                } else if (ball.y < groundLevelY && ball.dy < 0 && ball.isGroundShot) {
+                    // If it bounced up but is now falling again after hitting the ground
+                    ball.dy *= 0.99; // Gravity starts pulling it down again slower than initial
+                } else if (ball.y < bowlingCreaseY && ball.dy < 0 && !ball.isGroundShot) {
+                     // Simple peak simulation for air ball if it didn't hit ground level
+                     // If it goes above bowling crease level and is still going up, slow vertical speed
+                      ball.dy *= 0.99; // Air resistance / arc peak simulation
+                } else if (ball.y >= bowlingCreaseY && ball.dy < 0 && !ball.isGroundShot) {
+                      // If it reached bowling crease level on the way up, start falling
+                       ball.dy *= -0.5; // Start falling back down slightly faster
+                       ball.isGroundShot = true; // Assume it's coming down towards the ground now
+                }
+                 // Basic downward acceleration if in air (not yet hit ground level)
+                 if (ball.y < groundLevelY && !ball.isGroundShot) {
+                     ball.dy += canvas.height * 0.0005; // Apply downward acceleration (gravity)
+                 }
 
 
-  // --- Start Game ---
-  // Initial call to set up the menu
-  initGame();
-  // Start the game loop, which will initially draw the menu state
-  gameLoop();
+                // --- Collision Checks ---
 
-</script>
+                // Check Bat collision regardless of who is batting, ONLY if ball hasn't been hit yet
+                if (!ball.isHit) {
+                    checkBatCollision(); // This function handles the hit physics and sets ball.isHit
+                }
+
+
+                // Check Stump collision *after* ball has moved and hit status is known
+                // Only check if ball hasn't been hit or stopped
+                if (!ball.isHit && !ball.isStopped) {
+                     checkStumpCollision();
+                }
+
+                // Check Fielder collision *after* ball has moved and hit status is known, and not stopped
+                // Fielders only interact after the ball is hit
+                if(ball.isHit && !ball.isStopped) {
+                     checkFielderCollision(); // This function handles stopping/catching and calls processDeliveryOutcome/handleWicket
+                }
+
+
+                // Check Boundary collision *after* ball has moved and hit status is known, and not stopped
+                 if (ball.isHit && !ball.isStopped) {
+                     checkBoundaryCollision(); // This function triggers handleBoundary if crossed
+                 }
+
+
+                // Check if ball is out of the general play area *if* not already stopped or boundary/wicket triggered
+                 // This is a fallback for dots/misses/wides/byes that leave the screen
+                 // Only check if ball is in motion and play area
+                 if (!ball.isStopped && gamePhase === 'ball_in_play') {
+                     isBallOutOfPlayArea(); // This function handles the outcome and calls processDeliveryOutcome
+                 }
+
+
+            } // End if isBowled && !isStopped && gamePhase === 'ball_in_play'
+
+
+             // --- Fielder Movement (Chase Ball) ---
+             // Fielders move if ball is hit and not yet stopped by a fielder or boundary
+             if (ball.isBowled && ball.isHit && !ball.isStopped && gamePhase === 'ball_in_play') {
+                  fielders.forEach(fielder => {
+                       // Simple movement towards the ball
+                       const dx = ball.x - fielder.x;
+                       const dy = ball.y - fielder.y;
+                       const distance = Math.sqrt(dx*dx + dy*dy);
+
+                       const fielderChaseSpeed = fielder.speed; // Use fielder's defined speed
+
+                       if (distance > fielder.radius * 1.5) { // Only move if ball is not very close to avoid jitter
+                            const moveX = dx / distance * fielderChaseSpeed;
+                            const moveY = dy / distance * fielderChaseSpeed;
+
+                            fielder.x += moveX;
+                            fielder.y += moveY;
+
+                            // Keep fielders within the outfield boundary (approx) - use canvas edges
+                             const boundaryX1_soft = canvas.width * (BOUNDARY_PADDING_RATIO * 0.5); // Slightly inside edge
+                             const boundaryY1_soft = canvas.height * (BOUNDARY_PADDING_RATIO * 0.5);
+                             const boundaryX2_soft = canvas.width * (1 - BOUNDARY_PADDING_RATIO * 0.5);
+                             const boundaryY2_soft = canvas.height * (1 - BOUNDARY_PADDING_RATIO * 0.5);
+
+                             if (fielder.x < boundaryX1_soft) fielder.x = boundaryX1_soft;
+                             if (fielder.x > boundaryX2_soft) fielder.x = boundaryX2_soft;
+                             if (fielder.y < boundaryY1_soft) fielder.y = boundaryY1_soft;
+                             if (fielder.y > boundaryY2_soft) fielder.y = boundaryY2_soft;
+
+                             // Prevent fielders entering the pitch area (simple check)
+                             const pitchX1 = (canvas.width - canvas.width * PITCH_WIDTH_RATIO) / 2;
+                             const pitchX2 = pitchX1 + canvas.width * PITCH_WIDTH_RATIO;
+                             const pitchY1 = bowlingCreaseY;
+                             const pitchY2 = battingCreaseY;
+
+                             // If fielder is inside the pitch rectangle
+                             if (fielder.x > pitchX1 && fielder.x < pitchX2 && fielder.y > pitchY1 && fielder.y < pitchY2) {
+                                  // Push fielder back towards their original position/boundary
+                                  // Find the closest point on the pitch boundary and push away from it?
+                                  // Or just push them towards their original location outside the pitch?
+                                  // Let's find their original relative position and push them towards the corresponding absolute position outside the pitch.
+                                   const originalFielderIndex = initialFielderPositions.findIndex(p => p.x * canvas.width === fielder.x && p.y * canvas.height === fielder.y);
+                                   // This findIndex won't work after they've moved. Need to store original pos in fielder object.
+
+                                   // Simpler: Just push them away from the center of the pitch or nearest edge of the pitch.
+                                    const pitchCenterX = pitchX1 + (pitchX2 - pitchX1)/2;
+                                    const pitchCenterY = pitchY1 + (pitchY2 - pitchY1)/2;
+                                    const pushDirX = fielder.x - pitchCenterX;
+                                    const pushDirY = fielder.y - pitchCenterY;
+
+
+                                     // Decide whether to push horizontally or vertically out of the pitch,
+                                     // based on which edge of the pitch they are closest to breaching from the inside.
+                                     const distToLeft = Math.abs(fielder.x - pitchX1);
+                                     const distToRight = Math.abs(fielder.x - pitchX2);
+                                     const distToTop = Math.abs(fielder.y - pitchY1);
+                                     const distToBottom = Math.abs(fielder.y - pitchY2);
+
+                                     const minHorizDist = Math.min(distToLeft, distToRight);
+                                     const minVertDist = Math.min(distToTop, distToBottom);
+
+                                      // Add a bias to push vertically away from the pitch if they are close to the creases,
+                                      // and horizontally if they are close to the side lines of the pitch.
+                                      const verticalBiasZone = canvas.height * 0.1; // Zone near creases where vertical push is preferred
+                                      const isNearCreases = fielder.y < pitchY1 + verticalBiasZone || fielder.y > pitchY2 - verticalBiasZone;
+
+
+                                      if (isNearCreases || minHorizDist < minVertDist) {
+                                           // Closer to vertical edges of pitch OR near creases, push horizontally
+                                            fielder.x += (pushDirX > 0 ? 1 : -1) * fielderChaseSpeed; // Push away from pitch center X
+                                      } else {
+                                           // Closer to horizontal edges of pitch (sides), push vertically
+                                            fielder.y += (pushDirY > 0 ? 1 : -1) * fielderChaseSpeed; // Push away from pitch center Y
+                                      }
+                             }
+
+                       }
+                  });
+             }
+
+
+            // Redraw everything
+            draw();
+        }
+
+        // --- Game State Management ---
+
+        // Function to start a new game (called after toss)
+        function startGame(mode, opponent, startingTurn) {
+            currentMode = mode;
+            opponentType = opponent; // 'AI' for now
+            // currentTurn is already set by startInitialInnings
+            // currentInnings is already set by startInitialInnings
+            // scores are already reset by startInitialInnings
+            // ballsThisOver is already reset by startInitialInnings
+            gamePhase = 'awaiting_delivery'; // Game starts waiting for the first ball
+
+            gameActive = true; // Start game logic loop
+
+            updateScoreDisplay();
+            // Message is set by startInitialInnings
+
+            // resizeGame() is called by startInitialInnings
+
+            // The main update loop is already running due to the initial call
+            // and handles gameActive check.
+             console.log(`Game started: Mode=${currentMode}, Opponent=${opponentType}, Starting Turn=${currentTurn}`);
+
+            // First delivery is triggered by startInitialInnings after a delay
+        }
+
+         function showBattingControls() {
+             controlsDiv.style.display = 'flex'; // Ensure container is visible
+             moveLeftButton.style.display = 'inline-block';
+             moveRightButton.style.display = 'inline-block';
+             groundedShotButton.style.display = 'inline-block';
+             loftedShotButton.style.display = 'inline-block';
+             // Hide bowling controls
+             bowlButton.style.display = 'none';
+         }
+
+         function showBowlingControls() {
+              controlsDiv.style.display = 'flex'; // Ensure container is visible
+             // Hide batting controls
+             moveLeftButton.style.display = 'none';
+             moveRightButton.style.display = 'none';
+             groundedShotButton.style.display = 'none';
+             loftedShotButton.style.display = 'none';
+             // Show bowling controls
+             bowlButton.style.display = 'inline-block';
+         }
+
+
+        // --- Event Listeners for Menu ---
+        modeSelectionDiv.querySelectorAll('button').forEach(button => {
+            button.addEventListener('click', () => {
+                const mode = button.getAttribute('data-mode');
+                 // Instead of startGame directly, go to toss
+                 startToss(mode, 'AI'); // Always vs AI for now
+            });
+        });
+
+         // Event listener for the "Next Innings" button
+         nextInningsButton.addEventListener('click', () => {
+              startNextInnings();
+         });
+
+
+        // --- Initial Setup ---
+        // Initial resize to set up the canvas and base element sizes (will draw menu initially)
+        resizeGame();
+        window.addEventListener('resize', resizeGame); // Adjust game on window resize
+
+        // Initially hide game controls (menu is visible)
+        controlsDiv.style.display = 'flex'; // Keep flex for layout, but children will be hidden by show/hide functions
+        showBattingControls(); // Set display properties, but controls are hidden by menu overlay initially
+
+
+        // Start the game loop (it will initially just draw the field because gameActive is false and gamePhase is 'menu')
+        animationFrameId = requestAnimationFrame(update);
+
+
+        // Initial message
+        updateMessageDisplay("Select a mode from the menu to start.");
+
+
+    </script>
 
 </body>
 </html>
