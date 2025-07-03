@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Cricket Game - Enhanced Shots & Fielding</title>
+    <title>Simple Cricket Game - Simplified Bowling</title>
     <style>
         body {
             margin: 0;
@@ -22,8 +22,8 @@
 
         #gameArea {
             width: 95%; /* Use a large percentage of the width */
-            max-width: 900px; /* Adjusted max-width - keeping it slightly less wide might show more vertical field */
-            aspect-ratio: 16 / 12; /* Adjusted aspect ratio to be taller (e.g., 4:3) */
+            max-width: 700px; /* Adjusted max-width again */
+            aspect-ratio: 16 / 20; /* Adjusted aspect ratio to be significantly taller */
             background-color: #8FBC8F; /* Green field color - this will be the outfield now */
             border: 2px solid #556B2F; /* Darker green border */
             box-sizing: border-box; /* Include border in size */
@@ -31,7 +31,10 @@
             margin-top: 10px; /* Space from top */
             margin-bottom: 10px;
             flex-shrink: 0; /* Prevent shrinking on small screens */
+             cursor: default; /* Default cursor */
         }
+
+        /* Removed bowling-target-mode cursor class as targeting is removed */
 
         canvas {
             display: block; /* Remove extra space below canvas */
@@ -45,7 +48,7 @@
             flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
             gap: 10px; /* Space between buttons */
             width: 95%;
-            max-width: 900px; /* Match gameArea width */
+            max-width: 700px; /* Match gameArea width */
             padding: 10px 0;
             box-sizing: border-box;
         }
@@ -63,6 +66,7 @@
             flex-grow: 1; /* Allow buttons to grow */
              max-width: 160px; /* Max width for buttons */
              text-align: center;
+             white-space: nowrap; /* Prevent text wrapping */
         }
 
          .control-button.red {
@@ -97,7 +101,7 @@
             text-align: center; /* Center the score */
             min-height: 1.5em; /* Reserve space to prevent layout shifts */
             width: 95%;
-            max-width: 900px;
+            max-width: 700px;
         }
 
          #messageDisplay {
@@ -107,7 +111,7 @@
              text-align: center;
              min-height: 1.2em; /* Reserve space */
               width: 95%;
-            max-width: 900px;
+            max-width: 700px;
          }
 
          #menuScreen, #tossScreen, #inningsOverScreen {
@@ -294,8 +298,8 @@
         let ballsThisOver = 0;
         let currentMode = null; // 'T10', 'ODI', 'TEST'
         let opponentType = 'AI'; // Only AI vs Player for now
-        let currentTurn = null; // 'player_batting', 'ai_batting', 'player_bowling', 'ai_bowling'
-        let gamePhase = 'menu'; // 'menu', 'toss', 'awaiting_delivery', 'ball_in_play', 'delivery_over', 'innings_over', 'game_over'
+        let currentTurn = null; // 'player_batting', 'ai_batting', 'player_bowling'
+        let gamePhase = 'menu'; // 'menu', 'toss', 'awaiting_delivery', 'ball_in_play', 'delivery_over', 'innings_over', 'game_over' // Removed 'bowling_target'
         let currentInnings = 0; // 0 until game starts
 
         let team1Name = "Player";
@@ -307,9 +311,9 @@
 
         const STUMP_WIDTH_RATIO = 0.01;
         const STUMP_HEIGHT_RATIO = 0.08;
-        const PITCH_Y_START_RATIO = 0.2; // Adjusted Y start for more outfield at bowler's end
-        const PITCH_Y_END_RATIO = 0.8; // Adjusted Y end for more outfield at batsman's end
-        const GROUND_LEVEL_Y_RATIO = 0.82; // Y position considered 'ground level' near batting crease (adjusted)
+        const PITCH_Y_START_RATIO = 0.15; // Adjusted Y start for more outfield at bowler's end
+        const PITCH_Y_END_RATIO = 0.85; // Adjusted Y end for more outfield at batsman's end
+        const GROUND_LEVEL_Y_RATIO = 0.87; // Y position considered 'ground level' near batting crease (adjusted)
         const BOUNDARY_PADDING_RATIO = 0.02; // Space between canvas edge and drawn boundary line
         const PITCH_WIDTH_RATIO = 0.4; // Pitch width as fraction of canvas width
 
@@ -391,7 +395,7 @@
              groundLevelY = canvas.height * GROUND_LEVEL_Y_RATIO;
 
 
-             // Stumps at batting crease (AI batting target / Player bowling target)
+             // Stumps at batting crease (AI batting target / Player bowling target area end)
              stumpWidth = canvas.width * STUMP_WIDTH_RATIO;
              stumpHeight = canvas.height * STUMP_HEIGHT_RATIO;
              stumpsY = battingCreaseY - stumpHeight / 2; // Position stumps centered vertically on crease line (adjust as needed)
@@ -406,7 +410,7 @@
              ctx.fillRect(stumpsX[1], stumpsY, stumpWidth, stumpHeight);
              ctx.fillRect(stumpsX[2], stumpsY, stumpWidth, stumpHeight);
 
-              // Stumps at bowling crease (Player batting target / AI bowling target)
+              // Stumps at bowling crease (Player batting target / AI bowling target area end)
              const bowlingStumpsY = bowlingCreaseY - stumpHeight / 2;
              const bowlingStumpsX = [
                  middleStumpX - stumpWidth * 1.5,
@@ -501,6 +505,8 @@
             ctx.fill();
         }
 
+         // Removed drawBowlingTarget function
+
         // Main draw function
         function draw() {
             // Always draw the field, but hide game elements if not active in 'menu', 'toss', 'innings_over' phases
@@ -520,6 +526,8 @@
                  fielders.forEach(fielder => {
                      drawFielder(fielder);
                  });
+
+                 // Removed drawBowlingTarget call
             }
             // Menu/Toss/InningsOver screens are drawn on top via DOM positioning/z-index
         }
@@ -558,7 +566,9 @@
                   fielders.forEach(fielder => {
                        fielder.radius = fielderRadius;
                        fielder.speed = fielderSpeed;
-                       // Note: Fielder positions should ideally scale too, but that requires storing their _relative_ position initially. For simplicity, they stay at their absolute calculated positions from the first resize/init for now. A proper implementation would store relative positions and recalculate absolute ones here.
+                       // Fielder positions should ideally scale too, but that requires storing their _relative_ position initially.
+                       // For now, they stay at their absolute calculated positions from the first resize/init.
+                       // A proper implementation would store relative positions and recalculate absolute ones here.
                   });
              }
 
@@ -575,10 +585,11 @@
                   radius: canvas.width * 0.015 // Slightly larger
               };
 
+             // Removed bowlingTargetArea definition
 
-            // Ball starting position will depend on bowling logic - place off screen
-             ball.x = (currentTurn === 'player_batting' ? bowlerPos.x : wicketKeeperPos.x);
-             ball.y = (currentTurn === 'player_batting' ? bowlerPos.y : wicketKeeperPos.y);
+            // Ball starting position will depend on bowling logic - place off screen or at bowler/keeper
+             ball.x = (currentTurn === 'player_batting') ? bowlerPos.x : wicketKeeperPos.x;
+             ball.y = (currentTurn === 'player_batting') ? bowlerPos.y : wicketKeeperPos.y;
              if (!ball.isBowled) { // If ball isn't currently in play, just reset its off-screen position
                  ball.x = -ball.radius; // Hide it
                  ball.y = bowlingCreaseY; // Default Y
@@ -591,7 +602,7 @@
 
         // Update score display
         function updateScoreDisplay() {
-             let currentScore = (currentTurn === 'player_batting' || currentTurn === 'player_bowling') ? team1Score : team2Score;
+             let currentScore = (currentTurn === 'player_batting') ? team1Score : team2Score; // Player batting or AI batting (Player bowling)
               const balls = Math.round((currentScore.overs % 1) * 6);
               scoreDisplay.textContent = `Score: ${currentScore.runs}/${currentScore.wickets} | Overs: ${Math.floor(currentScore.overs)}.${balls}`;
         }
@@ -675,12 +686,14 @@
          bowlButton.addEventListener('click', () => {
              // Allow bowling if player bowling and ready for delivery
              if (currentTurn === 'player_bowling' && gamePhase === 'awaiting_delivery') {
-                 playerBowl();
+                 // Directly execute the bowl with an automatic target
+                 executePlayerBowl(); // Removed targetX, targetY parameters
              } else if (currentTurn === 'player_bowling' && gamePhase === 'ball_in_play') {
                   updateMessageDisplay("Ball is already bowled!");
              }
          });
 
+        // Removed canvas click and mousemove/touchmove listeners for bowling target
 
         // --- Game Actions ---
 
@@ -694,8 +707,8 @@
                  // Vary the target Y slightly for bounce variation (not true physics, just visual)
                  const targetY = battingCreaseY + (Math.random() - 0.5) * canvas.height * 0.05; // Aim around batting crease
 
-                // Reduced speed factor for bowling
-                const speedFactor = 0.004 + Math.random() * 0.003; // Reduced range (e.g. 0.004 to 0.007)
+                // Further reduced speed factor for bowling
+                const speedFactor = 0.002 + Math.random() * 0.001; // Even further reduced range (e.g. 0.002 to 0.003)
                  const totalDistanceY = targetY - bowlingCreaseY;
                  const verticalSpeed = canvas.height * speedFactor;
                  const timeToReachTargetY = totalDistanceY / verticalSpeed; // Estimate time based on Y
@@ -723,43 +736,42 @@
              }
         }
 
-         // Player Bowl action (Simplified)
-         function playerBowl() {
-              if (currentTurn === 'player_bowling' && gamePhase === 'awaiting_delivery') {
-                   // Simple bowling: bowls from bowler's end towards AI stumps with some randomness
-                   const startX = bowlerPos.x + (Math.random() - 0.5) * canvas.width * 0.05; // Start slightly off-center
+         // Execute Player Bowl action with an automatic target
+         function executePlayerBowl() { // Removed targetX, targetY parameters
+              if (currentTurn === 'player_bowling' && gamePhase === 'awaiting_delivery') { // Check gamePhase is awaiting_delivery now
+                   // Start from bowler's position
+                   const startX = bowlerPos.x;
                    const startY = bowlerPos.y;
 
-                   const targetX = canvas.width / 2 + (Math.random() - 0.5) * canvas.width * 0.08; // Aim near AI stumps
-                   const targetY = stumpsY; // Aim at AI stumps Y level (batting crease Y for AI)
+                   // Automatic target point: Aim randomly around AI batsman's stumps
+                    const aiStumpsCenterX = canvas.width / 2;
+                    const aiStumpsY = battingCreaseY; // Aim level with AI stumps
+                    const targetX = aiStumpsCenterX + (Math.random() - 0.5) * canvas.width * 0.08; // Random horizontal variation
+                    const targetY = aiStumpsY + (Math.random() - 0.5) * canvas.height * 0.05; // Random vertical variation around crease
 
-                    // Reduced speed factor for bowling
-                   const speedFactor = 0.004 + Math.random() * 0.003; // Reduced range (e.g. 0.004 to 0.007)
-                   const totalDistanceY = targetY - startY;
-                   const verticalSpeed = canvas.height * speedFactor; // Fixed vertical speed down the pitch
+                   // Calculate initial velocity to reach the target point
+                    const verticalSpeed = canvas.height * (0.003 + Math.random() * 0.001); // Slower base vertical speed for player bowling
 
-                   const timeToReachTargetY = totalDistanceY / verticalSpeed;
-                   const horizontalDistance = targetX - startX;
-                   const horizontalSpeed = horizontalDistance / timeToReachTargetY;
+                   const timeToReachTargetY = (targetY - startY) / verticalSpeed;
+                   const horizontalSpeed = (targetX - startX) / timeToReachTargetY;
 
 
                    ball.x = startX;
                    ball.y = startY;
                    ball.dx = horizontalSpeed;
-                   ball.dy = verticalSpeed; // Bowl towards the other end
+                   ball.dy = verticalSpeed; // Bowl downwards towards the target
 
-                    ball.speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+                   ball.speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy); // Update speed based on actual vector
                    ball.isBowled = true;
                    ball.isHit = false;
                    ball.isGroundShot = false;
                    ball.isStopped = false;
-                    // bat.swinging is handled by AI batting logic later
-                    bat.intendedShotType = null; // Ensure this is reset
+                   bat.intendedShotType = null; // Reset
 
 
-                   gamePhase = 'ball_in_play';
-                   updateMessageDisplay("You bowled!");
-                   console.log("Player Bowled!");
+                   gamePhase = 'ball_in_play'; // Transition to ball is in play
+                   updateMessageDisplay("Ball bowled!");
+                   console.log("Player bowled!");
                    // AI batting logic will react in the update loop
               }
          }
@@ -928,8 +940,8 @@
                         if (currentTurn === 'player_batting') {
                             if (movingLeft) horizontalPush -= bat.speed * 1.5; // Push more left if moving left
                             if (movingRight) horizontalPush += bat.speed * 1.5; // Push more right if moving right
-                        } else { // AI batting - add randomness
-                             horizontalPush += (Math.random() - 0.5) * canvas.width * 0.005;
+                        } else if (currentTurn === 'player_bowling') { // AI batting
+                             horizontalPush += (Math.random() - 0.5) * canvas.width * 0.005; // Add some AI randomness
                         }
 
 
@@ -1047,9 +1059,9 @@
 
                    // Check if ball is OUTSIDE any boundary
                    // Use slightly more generous off-screen check for boundary detection itself
-                   const checkX1 = -ball.radius;
+                   const checkX1 = 0 - ball.radius;
                    const checkX2 = canvas.width + ball.radius;
-                   const checkY1 = -ball.radius;
+                   const checkY1 = 0 - ball.radius;
                    const checkY2 = canvas.height + ball.radius;
 
 
@@ -1073,7 +1085,6 @@
                               updateMessageDisplay("Four!");
                          }
                          // Note: This doesn't handle bouncing 4s etc. It's a simple "did it cross a boundary line?" check.
-
 
                         console.log(`Ball crossed boundary: ${runsScored} runs`);
 
@@ -1138,8 +1149,10 @@
              let chasingTeamName = (currentTurn === 'player_batting') ? team2Name : team1Name; // Correct team name
 
              // Get the score of the team that batted *first* in this match (for target setting)
+             // This logic needs to be smarter for Test matches tracking multiple innings scores.
+             // For now, let's stick to the simplified limited overs target calculation.
              const team1BattedFirst = (currentInnings === 1 && currentTurn === 'player_batting') || (currentInnings === 2 && currentTurn === 'player_bowling'); // Check if team1 was the first to bat
-             const firstInningsScore = team1BattedFirst ? team1Score : team2Score;
+             const firstInningsScore = team1BattedFirst ? team1Score : team2Score; // Score of the team that batted first
 
 
              inningsOverTitle.textContent = `${finishedBattingTeam}'s Innings Over`;
@@ -1160,16 +1173,17 @@
                        nextInningsButton.textContent = "Play Again?";
                        nextInningsButton.onclick = () => { location.reload(); }; // Reload page to restart
                   } else if (finishedScore.runs === firstInningsScore.runs && finishedScore.wickets === 10 || finishedScore.overs >= maxOvers) {
-                       // Tie condition (runs equal AND innings complete)
+                       // Tie condition (runs equal AND innings complete - wickets all lost OR overs up)
                         inningsOverTitle.textContent = "Game Over!";
                        updateMessageDisplay("Match Tied!");
                        nextInningsButton.textContent = "Play Again?";
                        nextInningsButton.onclick = () => { location.reload(); };
                   }
                    else {
-                       // Team 1 won (AI ran out of wickets/overs before reaching target)
+                       // Bowling team won (Batting team ran out of wickets/overs before reaching target)
+                        const bowlingTeamName = finishedBattingTeam === team1Name ? team2Name : team1Name;
                        inningsOverTitle.textContent = "Game Over!";
-                       updateMessageDisplay(`${firstInningsScore.runs > finishedScore.runs ? team1Name : team2Name} Wins by ${Math.abs(firstInningsScore.runs - finishedScore.runs)} runs!`); // Winner is the one with more runs
+                       updateMessageDisplay(`${bowlingTeamName} Wins by ${Math.abs(firstInningsScore.runs - finishedScore.runs)} runs!`); // Winner is the one with more runs
                        nextInningsButton.textContent = "Play Again?";
                        nextInningsButton.onclick = () => { location.reload(); };
                    }
@@ -1197,7 +1211,7 @@
                              nextBattingTeamName = team1Name;
                               updateMessageDisplay(`${team1Name} batting next.`);
                         }
-                        nextInningsButton.textContent = `Start Innings ${currentInings + 1} (${nextBattingTeamName} batting)`;
+                        nextInningsButton.textContent = `Start Innings ${currentInnings + 1} (${nextBattingTeamName} batting)`;
                         nextInningsButton.onclick = () => { startNextInnings(); };
                    } else {
                        // End of Innings 4 - Game Over (Need more robust Test end logic here)
@@ -1247,8 +1261,8 @@
                    updateMessageDisplay("Waiting for AI to bowl...");
                    setTimeout(aiBowl, 1500);
               } else if (currentTurn === 'player_bowling') { // Player bowling, AI batting
-                   updateMessageDisplay("You are bowling. Bowl the first ball.");
-                   // Player initiates bowling with button click
+                   updateMessageDisplay("You are bowling. Bowl the next ball.");
+                   // Player initiates bowling via button click
               }
          }
 
@@ -1278,6 +1292,7 @@
                        // AI chooses (always bats first for simplicity)
                        setTimeout(() => {
                             updateMessageDisplay(`${team2Name} chooses to bat.`);
+                            tossScreen.style.display = 'none'; // Hide toss overlay AFTER AI choice
                             startInitialInnings('player_bowling'); // AI bats first, player bowls
                        }, 1500);
                   }
@@ -1289,7 +1304,7 @@
               button.addEventListener('click', () => {
                    const choice = button.getAttribute('data-choice');
                    updateMessageDisplay(`${team1Name} chooses to ${choice}.`);
-                   tossScreen.style.display = 'none';
+                   tossScreen.style.display = 'none'; // Hide toss overlay AFTER player choice
 
                    if (choice === 'bat') {
                        startInitialInnings('player_batting'); // Player bats, AI bowls
@@ -1468,7 +1483,7 @@
                 // Check Stump collision *after* ball has moved and hit status is known
                 // Only check if ball hasn't been hit or stopped
                 if (!ball.isHit && !ball.isStopped) {
-                     checkStumpCollision();
+                     checkStumpCollision(); // Checks stumps at either end based on current turn
                 }
 
                 // Check Fielder collision *after* ball has moved and hit status is known, and not stopped
@@ -1533,18 +1548,10 @@
                              // If fielder is inside the pitch rectangle
                              if (fielder.x > pitchX1 && fielder.x < pitchX2 && fielder.y > pitchY1 && fielder.y < pitchY2) {
                                   // Push fielder back towards their original position/boundary
-                                  // Find the closest point on the pitch boundary and push away from it?
-                                  // Or just push them towards their original location outside the pitch?
-                                  // Let's find their original relative position and push them towards the corresponding absolute position outside the pitch.
-                                   const originalFielderIndex = initialFielderPositions.findIndex(p => p.x * canvas.width === fielder.x && p.y * canvas.height === fielder.y);
-                                   // This findIndex won't work after they've moved. Need to store original pos in fielder object.
-
-                                   // Simpler: Just push them away from the center of the pitch or nearest edge of the pitch.
-                                    const pitchCenterX = pitchX1 + (pitchX2 - pitchX1)/2;
+                                   const pitchCenterX = pitchX1 + (pitchX2 - pitchX1)/2;
                                     const pitchCenterY = pitchY1 + (pitchY2 - pitchY1)/2;
                                     const pushDirX = fielder.x - pitchCenterX;
                                     const pushDirY = fielder.y - pitchCenterY;
-
 
                                      // Decide whether to push horizontally or vertically out of the pitch,
                                      // based on which edge of the pitch they are closest to breaching from the inside.
